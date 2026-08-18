@@ -56,7 +56,7 @@ export class TelegramService {
 
     console.log('🚀 Telegram Client ishga tushirilmoqda...');
     this.client = new TelegramClient(stringSession, this.config.apiId, this.config.apiHash, {
-      connectionRetries: 10,
+      connectionRetries: 15,
       autoReconnect: true,
     });
 
@@ -76,9 +76,8 @@ export class TelegramService {
     console.log(`\n==================================================`);
     console.log(`✅ Telegram akkaunt ulandi: ${this.me.firstName} (@${this.me.username || 'username_yoq'})`);
     console.log(`🆔 ID: ${this.me.id}`);
-    console.log(`🤖 AI Status: ${this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq'}`);
+    console.log(`🤖 AI Status: 🟢 Yoniq`);
     console.log(`📚 Kontekst hajmi: ${this.config.historyLimit} ta xabar`);
-    console.log(`⚡ Tezkor va barqaror matnli javoblar faol!`);
     console.log(`==================================================\n`);
 
     this.registerHandlers();
@@ -86,59 +85,58 @@ export class TelegramService {
 
   private registerHandlers() {
     this.client.addEventHandler(async (event: NewMessageEvent) => {
-      const message = event.message;
-      if (!message || !message.text) return;
-
-      const senderId = message.senderId ? message.senderId.toString() : '';
-      const myId = this.me ? this.me.id.toString() : '';
-      const isFromMe = Boolean(message.out) || senderId === myId;
-      const text = message.text.trim();
-
-      // 1. Shaxsiy buyruqlar
-      if (isFromMe) {
-        if (text.startsWith('.')) {
-          await this.handleCommands(message, text);
-        }
-        return;
-      }
-
-      // Faqat shaxsiy chatlar (Lichka / DM)
-      const isPrivate = Boolean(event.isPrivate) || (message.peerId && (message.peerId as any).className === 'PeerUser');
-      if (!isPrivate) return;
-
-      const chatId = message.chatId ? message.chatId.toString() : senderId;
-
-      // Global AI o'chiq bo'lsa
-      if (!this.memoryManager.isEnabled()) {
-        console.log(`⏸️ [Chat ${chatId}] AI global o'chiq.`);
-        return;
-      }
-
-      // Chat vaqtinchalik muzlatilgan bo'lsa
-      if (this.memoryManager.isChatMuted(chatId)) {
-        console.log(`⏳ [Chat ${chatId}] Chat vaqtinchalik muzlatilgan.`);
-        return;
-      }
-
-      // Sender ma'lumotlarini olish
-      let senderUser: any = null;
       try {
-        senderUser = await message.getSender();
-      } catch {
-        // Non-fatal
+        const message = event.message;
+        if (!message) return;
+
+        const text = (message.text || '').trim();
+        const senderId = message.senderId ? message.senderId.toString() : '';
+        const myId = this.me ? this.me.id.toString() : '';
+        const isFromMe = Boolean(message.out) || senderId === myId;
+
+        // 1. Shaxsiy buyruqlar (.ai on/off/status)
+        if (isFromMe) {
+          if (text.startsWith('.')) {
+            await this.handleCommands(message, text);
+          }
+          return;
+        }
+
+        // Faqat shaxsiy lichka (DM) - Guruh va kanallarni tashlab ketamiz
+        const isGroupOrChannel = message.isGroup || message.isChannel || event.isGroup || event.isChannel;
+        if (isGroupOrChannel) return;
+
+        const chatId = message.chatId ? message.chatId.toString() : senderId;
+        if (!chatId) return;
+
+        // Global AI o'chiq bo'lsa
+        if (!this.memoryManager.isEnabled()) {
+          console.log(`⏸️ [Chat ${chatId}] AI global o'chiq.`);
+          return;
+        }
+
+        let senderName = 'Suhbatdosh';
+        try {
+          const senderUser: any = await message.getSender();
+          if (senderUser?.firstName) {
+            senderName = senderUser.firstName;
+          }
+          const senderUsername = senderUser?.username ? senderUser.username.toLowerCase() : '';
+          if (this.config.blacklistUsers.includes(senderUsername) || this.config.blacklistUsers.includes(senderId)) {
+            console.log(`🚫 [Blacklist] @${senderUsername || senderId} qora ro'yxatda.`);
+            return;
+          }
+        } catch {
+          // Non-fatal
+        }
+
+        if (!text) return;
+
+        console.log(`📩 [Kelgan xabar] ${senderName} (${chatId}): "${text}"`);
+        await this.queueAndProcessMessage(chatId, senderName, text, message);
+      } catch (handlerErr: any) {
+        console.error('❌ Event Handler xatoligi:', handlerErr?.message || handlerErr);
       }
-
-      const senderUsername = senderUser?.username ? senderUser.username.toLowerCase() : '';
-      const senderName = senderUser?.firstName || 'Suhbatdosh';
-
-      // Qora ro'yxatni tekshirish
-      if (this.config.blacklistUsers.includes(senderUsername) || this.config.blacklistUsers.includes(senderId)) {
-        console.log(`🚫 [Blacklist] @${senderUsername || senderId} qora ro'yxatda, javob berilmadi.`);
-        return;
-      }
-
-      // Debounce & Xabarlarni yig'ish
-      await this.queueAndProcessMessage(chatId, senderName, text);
     }, new NewMessage({}));
   }
 
@@ -173,12 +171,11 @@ export class TelegramService {
   private async queueAndProcessMessage(
     chatId: string,
     senderName: string,
-    text: string
+    text: string,
+    rawMsg: any
   ) {
     const state = this.memoryManager.getOrCreateChatState(chatId);
     state.pendingMessages.push(text);
-
-    console.log(`📩 [Yangi xabar] ${senderName} (${chatId}): "${text}"`);
 
     if (state.timer) {
       clearTimeout(state.timer);
@@ -189,47 +186,51 @@ export class TelegramService {
       state.pendingMessages = [];
       state.timer = undefined;
 
-      await this.executeAIResponse(chatId, senderName, messagesToProcess);
-    }, Math.min(this.config.debounceMs, 3000));
+      await this.executeAIResponse(chatId, senderName, messagesToProcess, rawMsg);
+    }, 2000); // 2 soniya debounce
   }
 
   private async executeAIResponse(
     chatId: string,
     senderName: string,
-    incomingTexts: string[]
+    incomingTexts: string[],
+    rawMsg: any
   ) {
     if (incomingTexts.length === 0) return;
 
     try {
-      console.log(`🔍 [Chat ${chatId}] Oxirgi ${this.config.historyLimit} ta xabar o'qilmoqda...`);
+      console.log(`🔍 [Chat ${chatId}] Tarix o'qilmoqda...`);
 
-      // 1. Oxirgi 50 ta xabarni olish
-      const rawMessages = await this.client.getMessages(chatId, {
-        limit: this.config.historyLimit,
-      });
-
+      // 1. Oxirgi 50 ta xabarni olish (xatolik bo'lsa ham dastur to'xtamaydi)
       const history: ChatMessage[] = [];
-      for (const m of rawMessages) {
-        const textContent = m.text ? m.text.trim() : '';
-        if (textContent) {
-          history.push({
-            id: m.id,
-            senderName: m.out ? 'Men' : senderName,
-            isMe: Boolean(m.out),
-            text: textContent,
-            date: new Date(m.date * 1000),
-          });
+      try {
+        const rawMessages = await this.client.getMessages(rawMsg.peerId || chatId, {
+          limit: this.config.historyLimit,
+        });
+
+        for (const m of rawMessages) {
+          const textContent = m.text ? m.text.trim() : '';
+          if (textContent) {
+            history.push({
+              id: m.id,
+              senderName: m.out ? 'Men' : senderName,
+              isMe: Boolean(m.out),
+              text: textContent,
+              date: new Date(m.date * 1000),
+            });
+          }
         }
+        history.reverse();
+      } catch (histErr: any) {
+        console.warn(`⚠️ [Tarix olishda ogohlantirish]: ${histErr?.message}`);
       }
-      history.reverse();
 
       // 2. Typing ko'rsatish
       if (this.config.simulateTyping) {
         try {
-          const entity = await this.client.getEntity(chatId);
           await this.client.invoke(
             new Api.messages.SetTyping({
-              peer: entity,
+              peer: rawMsg.peerId || (await this.client.getInputEntity(chatId)),
               action: new Api.SendMessageTypingAction(),
             })
           );
@@ -246,13 +247,18 @@ export class TelegramService {
         return;
       }
 
-      // Kichik insoniy kechikish
-      const delayMs = Math.min(Math.max(aiReply.length * 30, 1000), 2500);
-      await new Promise((r) => setTimeout(r, delayMs));
+      // Kichik insoniy kutish
+      await new Promise((r) => setTimeout(r, 1200));
 
-      // 3. Javobni yuborish
-      await this.client.sendMessage(chatId, { message: aiReply });
-      console.log(`📤 [Yuborildi] ${senderName} ga: "${aiReply}"\n`);
+      // 3. Javobni yuborish (bir necha usulda urinish)
+      try {
+        await this.client.sendMessage(rawMsg.peerId || chatId, { message: aiReply });
+      } catch {
+        const inputPeer = await this.client.getInputEntity(chatId);
+        await this.client.sendMessage(inputPeer, { message: aiReply });
+      }
+
+      console.log(`📤 [Muvaffaqiyatli Yuborildi] ${senderName} ga: "${aiReply}"\n`);
     } catch (error: any) {
       console.error(`❌ [Xatolik - Chat ${chatId}]:`, error?.message || error);
     }
