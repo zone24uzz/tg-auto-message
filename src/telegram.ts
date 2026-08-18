@@ -56,7 +56,8 @@ export class TelegramService {
 
     console.log('🚀 Telegram Client ishga tushirilmoqda...');
     this.client = new TelegramClient(stringSession, this.config.apiId, this.config.apiHash, {
-      connectionRetries: 5,
+      connectionRetries: 10,
+      autoReconnect: true,
     });
 
     await this.client.start({
@@ -69,10 +70,6 @@ export class TelegramService {
     const currentSession = this.client.session.save() as unknown as string;
     if (currentSession) {
       this.saveSessionString(currentSession);
-      console.log('\n🔑 RENDER UCHUN TELEGRAM_SESSION (Nusxalab oling):');
-      console.log('--------------------------------------------------');
-      console.log(currentSession);
-      console.log('--------------------------------------------------\n');
     }
 
     this.me = await this.client.getMe();
@@ -81,6 +78,7 @@ export class TelegramService {
     console.log(`🆔 ID: ${this.me.id}`);
     console.log(`🤖 AI Status: ${this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq'}`);
     console.log(`📚 Kontekst hajmi: ${this.config.historyLimit} ta xabar`);
+    console.log(`⚡ Tezkor va barqaror matnli javoblar faol!`);
     console.log(`==================================================\n`);
 
     this.registerHandlers();
@@ -92,32 +90,33 @@ export class TelegramService {
       if (!message || !message.text) return;
 
       const senderId = message.senderId ? message.senderId.toString() : '';
-      const myId = this.me.id.toString();
-      const isFromMe = message.out || senderId === myId;
+      const myId = this.me ? this.me.id.toString() : '';
+      const isFromMe = Boolean(message.out) || senderId === myId;
       const text = message.text.trim();
 
-      // 1. Shaxsiy buyruqlar (Saved Messages yoki o'zingiz yozganingizda)
-      if (isFromMe && text.startsWith('.')) {
-        await this.handleCommands(message, text);
-        return;
-      }
-
-      // Faqat shaxsiy chatlar (Lichka / Private) bilan ishlash
-      if (!event.isPrivate) return;
-
-      // Agar o'zingiz lichkada birovga qo'lda yozsangiz, AI ushbu chatni 15 minutga o'chiradi
-      const chatId = message.chatId ? message.chatId.toString() : senderId;
+      // 1. Shaxsiy buyruqlar
       if (isFromMe) {
-        this.memoryManager.muteChatForManualIntervention(chatId);
+        if (text.startsWith('.')) {
+          await this.handleCommands(message, text);
+        }
         return;
       }
+
+      // Faqat shaxsiy chatlar (Lichka / DM)
+      const isPrivate = Boolean(event.isPrivate) || (message.peerId && (message.peerId as any).className === 'PeerUser');
+      if (!isPrivate) return;
+
+      const chatId = message.chatId ? message.chatId.toString() : senderId;
 
       // Global AI o'chiq bo'lsa
-      if (!this.memoryManager.isEnabled()) return;
+      if (!this.memoryManager.isEnabled()) {
+        console.log(`⏸️ [Chat ${chatId}] AI global o'chiq.`);
+        return;
+      }
 
-      // Ushbu chat vaqtinchalik muzlatilgan bo'lsa (siz qo'lda yozganingiz sababli)
+      // Chat vaqtinchalik muzlatilgan bo'lsa
       if (this.memoryManager.isChatMuted(chatId)) {
-        console.log(`⏳ [Chat ${chatId}] Suhbatda siz faolsiz, AI kutish rejimida.`);
+        console.log(`⏳ [Chat ${chatId}] Chat vaqtinchalik muzlatilgan.`);
         return;
       }
 
@@ -126,7 +125,7 @@ export class TelegramService {
       try {
         senderUser = await message.getSender();
       } catch {
-        // Fallback
+        // Non-fatal
       }
 
       const senderUsername = senderUser?.username ? senderUser.username.toLowerCase() : '';
@@ -139,7 +138,7 @@ export class TelegramService {
       }
 
       // Debounce & Xabarlarni yig'ish
-      await this.queueAndProcessMessage(chatId, senderName, text, message);
+      await this.queueAndProcessMessage(chatId, senderName, text);
     }, new NewMessage({}));
   }
 
@@ -165,7 +164,7 @@ export class TelegramService {
         await message.edit({ text: '⚡ **Ushbu chatda AI qayta faollashtirildi.**' });
       } else {
         await message.edit({
-          text: `💡 **AI Komandalar:**\n• \`.ai on\` - Yoqish\n• \`.ai off\` - O'chirish\n• \`.ai status\` - Holat\n• \`.ai unmute\` - Joriy chatni faollashtirish`,
+          text: `💡 **AI Komandalar:**\n• \`.ai on\` - Yoqish\n• \`.ai off\` - O'chirish\n• \`.ai status\` - Holat\n• \`.ai unmute\` - Chatni ochish`,
         });
       }
     }
@@ -174,15 +173,13 @@ export class TelegramService {
   private async queueAndProcessMessage(
     chatId: string,
     senderName: string,
-    text: string,
-    lastMessage: any
+    text: string
   ) {
     const state = this.memoryManager.getOrCreateChatState(chatId);
     state.pendingMessages.push(text);
 
     console.log(`📩 [Yangi xabar] ${senderName} (${chatId}): "${text}"`);
 
-    // Agar oldin taymer qo'yilgan bo'lsa, uni bekor qilib yangilaymiz (Debounce)
     if (state.timer) {
       clearTimeout(state.timer);
     }
@@ -192,15 +189,14 @@ export class TelegramService {
       state.pendingMessages = [];
       state.timer = undefined;
 
-      await this.executeAIResponse(chatId, senderName, messagesToProcess, lastMessage);
-    }, this.config.debounceMs);
+      await this.executeAIResponse(chatId, senderName, messagesToProcess);
+    }, Math.min(this.config.debounceMs, 3000));
   }
 
   private async executeAIResponse(
     chatId: string,
     senderName: string,
-    incomingTexts: string[],
-    lastMessage: any
+    incomingTexts: string[]
   ) {
     if (incomingTexts.length === 0) return;
 
@@ -212,16 +208,20 @@ export class TelegramService {
         limit: this.config.historyLimit,
       });
 
-      const history: ChatMessage[] = rawMessages
-        .filter((m) => m.text && m.text.trim().length > 0)
-        .map((m) => ({
-          id: m.id,
-          senderName: m.out ? 'Men' : senderName,
-          isMe: Boolean(m.out),
-          text: m.text.trim(),
-          date: new Date(m.date * 1000),
-        }))
-        .reverse(); // Eng eskisidan yangisiga qarab xronologik tartib
+      const history: ChatMessage[] = [];
+      for (const m of rawMessages) {
+        const textContent = m.text ? m.text.trim() : '';
+        if (textContent) {
+          history.push({
+            id: m.id,
+            senderName: m.out ? 'Men' : senderName,
+            isMe: Boolean(m.out),
+            text: textContent,
+            date: new Date(m.date * 1000),
+          });
+        }
+      }
+      history.reverse();
 
       // 2. Typing ko'rsatish
       if (this.config.simulateTyping) {
@@ -246,8 +246,8 @@ export class TelegramService {
         return;
       }
 
-      // Real odamdek ko'rinishi uchun kichik kechikish (1.5 - 2.5 soniya)
-      const delayMs = Math.min(Math.max(aiReply.length * 40, 1500), 3500);
+      // Kichik insoniy kechikish
+      const delayMs = Math.min(Math.max(aiReply.length * 30, 1000), 2500);
       await new Promise((r) => setTimeout(r, delayMs));
 
       // 3. Javobni yuborish

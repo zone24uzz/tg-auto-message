@@ -9,7 +9,6 @@ export interface ChatState {
 export class MemoryManager {
   private isGlobalEnabled: boolean = true;
   private chatStates: Map<string, ChatState> = new Map();
-  private userMuteDurationMinutes: number = 15; // Manual yozganda AI 15 minutga o'chadi
 
   public isEnabled(): boolean {
     return this.isGlobalEnabled;
@@ -32,17 +31,16 @@ export class MemoryManager {
     return state;
   }
 
-  public muteChatForManualIntervention(chatId: string) {
+  public muteChat(chatId: string, durationMinutes: number = 10) {
     const state = this.getOrCreateChatState(chatId);
-    const until = new Date(Date.now() + this.userMuteDurationMinutes * 60 * 1000);
     state.isMuted = true;
-    state.mutedUntil = until;
+    state.mutedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
     if (state.timer) {
       clearTimeout(state.timer);
       state.timer = undefined;
     }
     state.pendingMessages = [];
-    console.log(`🔇 [Chat ${chatId}] Siz o'zingiz yozdingiz. AI ushbu chatda ${this.userMuteDurationMinutes} daqiqaga to'xtatildi.`);
+    console.log(`🔇 [Chat ${chatId}] AI ${durationMinutes} daqiqaga to'xtatildi.`);
   }
 
   public isChatMuted(chatId: string): boolean {
@@ -62,6 +60,7 @@ export class MemoryManager {
     if (state) {
       state.isMuted = false;
       state.mutedUntil = undefined;
+      console.log(`🔊 [Chat ${chatId}] AI qayta faollashtirildi.`);
     }
   }
 }
