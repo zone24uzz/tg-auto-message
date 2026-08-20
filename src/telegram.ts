@@ -182,6 +182,19 @@ export class TelegramService {
     rawMsg: any
   ) {
     const state = this.memoryManager.getOrCreateChatState(chatId);
+    
+    // Spam detection logic (e.g. 7 messages in 30 seconds)
+    if (!state.messageTimestamps) state.messageTimestamps = [];
+    const now = Date.now();
+    state.messageTimestamps.push(now);
+    state.messageTimestamps = state.messageTimestamps.filter(t => now - t < 30000);
+    
+    if (state.messageTimestamps.length > 7) {
+      console.log(`🚫 [Chat ${chatId}] Spam aniqlandi! 30 daqiqaga bloklanmoqda.`);
+      this.memoryManager.muteChat(chatId, 30);
+      return;
+    }
+
     state.pendingMessages.push(text);
 
     if (state.timer) {
@@ -251,6 +264,11 @@ export class TelegramService {
 
       if (!aiReply || aiReply.trim().length === 0) {
         console.warn('⚠️ Bo\'sh javob qaytdi.');
+        return;
+      }
+
+      if (aiReply.includes('IGNORE_MESSAGE')) {
+        console.log('🔇 [AI] Xabar inkor qilindi (shaxsiy/norasmiy). Javob berilmaydi.');
         return;
       }
 

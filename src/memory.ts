@@ -4,6 +4,7 @@ export interface ChatState {
   mutedUntil?: Date;
   pendingMessages: string[];
   timer?: NodeJS.Timeout;
+  messageTimestamps?: number[];
 }
 
 export class MemoryManager {
