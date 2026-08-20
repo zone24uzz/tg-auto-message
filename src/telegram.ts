@@ -268,7 +268,7 @@ export class TelegramService {
           // Enforce a simple limit by skipping very large files (e.g. > 15MB)
           const fileSize = rawMsg.file?.size || 0;
           if (fileSize < 15 * 1024 * 1024) {
-            const buffer = await this.client.downloadMedia(rawMsg, { workers: 1 });
+            const buffer = await this.client.downloadMedia(rawMsg);
             if (buffer) {
               let mimeType = rawMsg.file?.mimeType || 'image/jpeg';
               if (rawMsg.videoNote || rawMsg.voice) {
