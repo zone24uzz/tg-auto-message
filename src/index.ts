@@ -1,6 +1,7 @@
 import http from 'http';
 import { loadConfig } from './config.js';
 import { TelegramService } from './telegram.js';
+import { AdminBot } from './adminBot.js';
 
 function startHealthCheckServer() {
   const port = process.env.PORT || 0;
@@ -29,13 +30,19 @@ function startHealthCheckServer() {
 async function bootstrap() {
   console.log('🤖 Telegram AI Auto-Responder ishga tushirilmoqda...\n');
 
-  // Render Web Service uchun HTTP server
   startHealthCheckServer();
 
   try {
     const config = loadConfig();
     const service = new TelegramService(config);
     await service.start();
+
+    if (config.botToken) {
+      const adminBot = new AdminBot(config, service.getMemoryManager(), service.getMeId());
+      adminBot.launch();
+    } else {
+      console.log('⚠️ Boshqaruv boti ishga tushmadi: BOT_TOKEN ko\'rsatilmagan.');
+    }
   } catch (error: any) {
     console.error('❌ Xatolik yuz berdi:', error?.message || error);
     process.exit(1);

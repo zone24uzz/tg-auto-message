@@ -27,6 +27,14 @@ export class TelegramService {
     );
   }
 
+  public getMemoryManager(): MemoryManager {
+    return this.memoryManager;
+  }
+
+  public getMeId(): string {
+    return this.me ? this.me.id.toString() : '';
+  }
+
   private loadSessionString(): string {
     if (this.config.sessionString && this.config.sessionString.trim().length > 0) {
       return this.config.sessionString.trim();

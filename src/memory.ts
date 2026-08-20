@@ -65,4 +65,14 @@ export class MemoryManager {
       console.log(`🔊 [Chat ${chatId}] AI qayta faollashtirildi.`);
     }
   }
+
+  public getMutedChats(): string[] {
+    const muted: string[] = [];
+    for (const [chatId, state] of this.chatStates.entries()) {
+      if (this.isChatMuted(chatId)) {
+        muted.push(chatId);
+      }
+    }
+    return muted;
+  }
 }

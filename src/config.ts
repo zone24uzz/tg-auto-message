@@ -14,6 +14,8 @@ export interface Config {
   simulateTyping: boolean;
   blacklistUsers: string[];
   systemPrompt: string;
+  botToken: string;
+  adminId: string;
 }
 
 export function loadConfig(): Config {
@@ -58,5 +60,7 @@ ASOSIY VAZIFALAR VA QOIDALAR:
     simulateTyping: process.env.SIMULATE_TYPING !== 'false',
     blacklistUsers,
     systemPrompt: defaultSystemPrompt,
+    botToken: process.env.BOT_TOKEN || '',
+    adminId: process.env.ADMIN_ID || '',
   };
 }
