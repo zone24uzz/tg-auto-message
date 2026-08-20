@@ -139,6 +139,23 @@ export class TelegramService {
 
         if (!text && !message.media) return;
 
+        // Golos, dumaloq video, rasm yoki video kelsa — oddiy javob berib o'tish
+        const hasVoice = !!(message as any).voice;
+        const hasVideoNote = !!(message as any).videoNote;
+        const hasVideo = message.video || (message.media && (message.media as any).className === 'MessageMediaDocument' && (message.file?.mimeType || '').startsWith('video/'));
+        const hasPhoto = !!(message.photo || (message.media && (message.media as any).className === 'MessageMediaPhoto'));
+
+        if (!text && (hasVoice || hasVideoNote || hasVideo || hasPhoto)) {
+          console.log(`🎤 [Chat ${chatId}] Media xabar keldi (${hasVoice ? 'voice' : hasVideoNote ? 'video_note' : hasVideo ? 'video' : 'photo'}). Oddiy javob berilmoqda.`);
+          try {
+            await message.reply({ message: 'Hozir band, keyinroq javob beraman 👍' });
+            console.log(`📤 [Chat ${chatId}] Media ga oddiy javob yuborildi.`);
+          } catch (replyErr: any) {
+            console.error(`❌ [Chat ${chatId}] Reply xatoligi:`, replyErr?.message);
+          }
+          return;
+        }
+
         console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${text || '[Media Fayl]'}"`);
         await this.queueAndProcessMessage(chatId, senderName, text || '[Media Fayl]', message);
       } catch (handlerErr: any) {
