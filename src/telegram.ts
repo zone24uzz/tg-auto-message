@@ -99,11 +99,14 @@ export class TelegramService {
         const senderId = message.senderId ? message.senderId.toString() : '';
         const myId = this.me ? this.me.id.toString() : '';
         const isFromMe = Boolean(message.out) || senderId === myId;
+        const chatId = message.chatId ? message.chatId.toString() : senderId;
 
-        // 1. Shaxsiy boshqaruv komandalari
         if (isFromMe) {
           if (text.startsWith('.')) {
             await this.handleCommands(message, text);
+          } else if (chatId) {
+            console.log(`⏸️ [Chat ${chatId}] Egasi o'zi yozdi. Chat 15 daqiqaga muzlatildi.`);
+            this.memoryManager.muteChat(chatId, 15);
           }
           return;
         }
@@ -113,7 +116,6 @@ export class TelegramService {
           return;
         }
 
-        const chatId = message.chatId ? message.chatId.toString() : senderId;
         if (!chatId) return;
 
         // Global AI o'chiq bo'lsa
@@ -212,12 +214,47 @@ export class TelegramService {
     }
 
     state.timer = setTimeout(async () => {
-      const messagesToProcess = [...state.pendingMessages];
-      state.pendingMessages = [];
       state.timer = undefined;
-
-      await this.executeAIResponse(chatId, senderName, messagesToProcess, rawMsg);
+      await this.tryProcessMessages(chatId, senderName, rawMsg);
     }, 1500); // 1.5 soniya debounce
+  }
+
+  private async tryProcessMessages(chatId: string, senderName: string, rawMsg: any) {
+    const state = this.memoryManager.getOrCreateChatState(chatId);
+    
+    // Check if I am online
+    let isOwnerOnline = false;
+    let timeSinceOffline = 9999; // seconds
+    try {
+      const me: any = await this.client.getEntity('me');
+      if (me.status?.className === 'UserStatusOnline') {
+        isOwnerOnline = true;
+      } else if (me.status?.className === 'UserStatusOffline' && me.status.wasOnline) {
+        const wasOnline = me.status.wasOnline; // unix timestamp in seconds
+        timeSinceOffline = Math.floor(Date.now() / 1000) - wasOnline;
+      }
+    } catch (e) {
+      console.warn("Egasi statusini olishda xatolik:", e);
+    }
+
+    if (isOwnerOnline || timeSinceOffline < 120) {
+      if (!state.onlineCheckTimer) {
+        console.log(`⏳ [Chat ${chatId}] Egasi onlayn yoki yaqinda chiqib ketgan (Offline bo'lganiga ${timeSinceOffline}s). 30 soniyadan keyin qayta tekshiriladi...`);
+        state.onlineCheckTimer = setTimeout(() => {
+          state.onlineCheckTimer = undefined;
+          this.tryProcessMessages(chatId, senderName, rawMsg);
+        }, 30000); // 30 soniyada tekshirish
+      }
+      return;
+    }
+
+    const messagesToProcess = [...state.pendingMessages];
+    if (messagesToProcess.length === 0) return;
+    if (this.memoryManager.isChatMuted(chatId)) return;
+    
+    state.pendingMessages = [];
+
+    await this.executeAIResponse(chatId, senderName, messagesToProcess, rawMsg);
   }
 
   private async executeAIResponse(
