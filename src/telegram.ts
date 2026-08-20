@@ -140,8 +140,17 @@ export class TelegramService {
 
         if (!text && !message.media) return;
 
-        console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${text || '[Media Fayl]'}"`);
-        await this.queueAndProcessMessage(chatId, senderName, text || '[Media Fayl]', message);
+        let messageText = text;
+        if (message.media && (message.media as any).document?.attributes) {
+          for (const attr of (message.media as any).document.attributes) {
+            if (attr.className === 'DocumentAttributeSticker') {
+              messageText = text ? `${text} [Sticker: ${attr.alt || ''}]` : `[Sticker: ${attr.alt || ''}]`;
+            }
+          }
+        }
+
+        console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${messageText || '[Media Fayl]'}"`);
+        await this.queueAndProcessMessage(chatId, senderName, messageText || '[Media Fayl]', message);
       } catch (handlerErr: any) {
         console.error('❌ Event Handler xatoligi:', handlerErr?.message || handlerErr);
       }
@@ -230,13 +239,20 @@ export class TelegramService {
         });
 
         for (const m of rawMessages) {
-          const textContent = (m.text || m.message || '').trim();
-          if (textContent) {
+          let textContent = (m.text || m.message || '').trim();
+          if (m.media && (m.media as any).document?.attributes) {
+            for (const attr of (m.media as any).document.attributes) {
+              if (attr.className === 'DocumentAttributeSticker') {
+                textContent = textContent ? `${textContent} [Sticker: ${attr.alt || ''}]` : `[Sticker: ${attr.alt || ''}]`;
+              }
+            }
+          }
+          if (textContent || m.media) {
             history.push({
               id: m.id,
               senderName: m.out ? 'Men' : senderName,
               isMe: Boolean(m.out),
-              text: textContent,
+              text: textContent || '[Media Fayl]',
               date: new Date(m.date * 1000),
             });
           }
@@ -292,8 +308,12 @@ export class TelegramService {
               }
               if (!mimeType) mimeType = 'application/octet-stream';
 
-              mediaParts.push({ data: buf.toString('base64'), mimeType });
-              console.log(`✅ [Chat ${chatId}] Media muvaffaqiyatli yuklandi (${mimeType}, ${Math.round(buf.length / 1024)}KB)`);
+              if (mimeType === 'application/x-tgsticker' || mimeType === 'application/octet-stream') {
+                console.log(`⚠️ [Chat ${chatId}] Qo'llab-quvvatlanmaydigan media formati: ${mimeType}, AI media qismiga qo'shilmaydi.`);
+              } else {
+                mediaParts.push({ data: buf.toString('base64'), mimeType });
+                console.log(`✅ [Chat ${chatId}] Media muvaffaqiyatli yuklandi (${mimeType}, ${Math.round(buf.length / 1024)}KB)`);
+              }
             }
           } else {
             console.log(`⚠️ [Chat ${chatId}] Media hajmi juda katta (${fileSize} bytes), AI ga yuborilmadi.`);
