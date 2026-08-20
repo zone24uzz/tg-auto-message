@@ -60,7 +60,7 @@ export class AIService {
       const userPrompt = `
 Quyida ${partnerName} bilan bo'lgan oldingi suhbat tarixi (oxirgi xabarlar):
 --- SUHBAT TARIXI (OXIRGI 50 TA XABAR) ---
-${formattedHistory || '(Hozircha oldingi xabarlar yo\\'q)'}
+${formattedHistory || "(Hozircha oldingi xabarlar yo'q)"}
 ------------------------------------------
 
 YANGI KELGAN XABAR(LAR):
