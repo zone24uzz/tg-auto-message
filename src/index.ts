@@ -3,7 +3,7 @@ import { loadConfig } from './config.js';
 import { TelegramService } from './telegram.js';
 
 function startHealthCheckServer() {
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 0;
   const server = http.createServer((req, res) => {
     if (req.url === '/health' || req.url === '/') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -27,7 +27,6 @@ function startHealthCheckServer() {
 }
 
 async function bootstrap() {
-  console.clear();
   console.log('🤖 Telegram AI Auto-Responder ishga tushirilmoqda...\n');
 
   // Render Web Service uchun HTTP server

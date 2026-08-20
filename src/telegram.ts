@@ -53,29 +53,28 @@ export class TelegramService {
   public async start() {
     const savedSession = this.loadSessionString();
     const stringSession = new StringSession(savedSession);
+    if (!savedSession) {
+      stringSession.setDC(4, "149.154.167.51", 443);
+    }
 
     console.log('🚀 Telegram Client ishga tushirilmoqda...');
     this.client = new TelegramClient(stringSession, this.config.apiId, this.config.apiHash, {
       connectionRetries: 15,
       autoReconnect: true,
+      useWSS: true,
     });
 
-    if (savedSession) {
-      console.log('🔑 Saqlangan session topildi. Avtomatik ulanmoqda...');
-      await this.client.connect();
-    } else {
-      console.log('📱 Yangi session yaratish uchun login talab qilinadi...');
-      await this.client.start({
-        phoneNumber: async () => await input.text('📱 Telefon raqamingizni kiriting (+998...): '),
-        password: async () => await input.password('🔐 2-bosqichli parolingiz (2FA bo\'lsa): '),
-        phoneCode: async () => await input.text('✉️ Telegramdan kelgan tasdiqlash kodini kiriting: '),
-        onError: (err) => console.error('❌ Telegram auth xatosi:', err),
-      });
+    console.log('📱 Session tekshirilmoqda. Agar eskirgan bo\'lsa yangi login talab qilinadi...');
+    await this.client.start({
+      phoneNumber: async () => await input.text('📱 Telefon raqamingizni kiriting (+998...): '),
+      password: async () => await input.password('🔐 2-bosqichli parolingiz (2FA bo\'lsa): '),
+      phoneCode: async () => await input.text('✉️ Telegramdan kelgan tasdiqlash kodini kiriting: '),
+      onError: (err) => console.error('❌ Telegram auth xatosi:', err),
+    });
 
-      const currentSession = this.client.session.save() as unknown as string;
-      if (currentSession) {
-        this.saveSessionString(currentSession);
-      }
+    const currentSession = this.client.session.save() as unknown as string;
+    if (currentSession) {
+      this.saveSessionString(currentSession);
     }
 
     this.me = await this.client.getMe();
