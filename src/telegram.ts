@@ -137,24 +137,8 @@ export class TelegramService {
           // Non-fatal
         }
 
+
         if (!text && !message.media) return;
-
-        // Golos, dumaloq video, rasm yoki video kelsa — oddiy javob berib o'tish
-        const hasVoice = !!(message as any).voice;
-        const hasVideoNote = !!(message as any).videoNote;
-        const hasVideo = message.video || (message.media && (message.media as any).className === 'MessageMediaDocument' && (message.file?.mimeType || '').startsWith('video/'));
-        const hasPhoto = !!(message.photo || (message.media && (message.media as any).className === 'MessageMediaPhoto'));
-
-        if (!text && (hasVoice || hasVideoNote || hasVideo || hasPhoto)) {
-          console.log(`🎤 [Chat ${chatId}] Media xabar keldi (${hasVoice ? 'voice' : hasVideoNote ? 'video_note' : hasVideo ? 'video' : 'photo'}). Oddiy javob berilmoqda.`);
-          try {
-            await message.reply({ message: 'Hozir band, keyinroq javob beraman 👍' });
-            console.log(`📤 [Chat ${chatId}] Media ga oddiy javob yuborildi.`);
-          } catch (replyErr: any) {
-            console.error(`❌ [Chat ${chatId}] Reply xatoligi:`, replyErr?.message);
-          }
-          return;
-        }
 
         console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${text || '[Media Fayl]'}"`);
         await this.queueAndProcessMessage(chatId, senderName, text || '[Media Fayl]', message);
@@ -282,17 +266,34 @@ export class TelegramService {
       if (rawMsg.media) {
         try {
           console.log(`📥 [Chat ${chatId}] Media fayl yuklanmoqda...`);
-          // Enforce a simple limit by skipping very large files (e.g. > 15MB)
           const fileSize = rawMsg.file?.size || 0;
           if (fileSize < 15 * 1024 * 1024) {
-            const buffer = await this.client.downloadMedia(rawMsg);
-            if (buffer) {
-              let mimeType = rawMsg.file?.mimeType || 'image/jpeg';
-              if (rawMsg.videoNote || rawMsg.voice) {
-                mimeType = rawMsg.voice ? 'audio/ogg' : 'video/mp4';
+            const downloaded = await this.client.downloadMedia(rawMsg);
+            if (downloaded) {
+              // downloadMedia Buffer yoki string qaytarishi mumkin
+              const buf = Buffer.isBuffer(downloaded) ? downloaded : Buffer.from(downloaded as any);
+              
+              // MimeType aniqlash
+              let mimeType = rawMsg.file?.mimeType || '';
+              const mediaDoc = (rawMsg.media as any)?.document;
+              if (mediaDoc?.attributes) {
+                for (const attr of mediaDoc.attributes) {
+                  if (attr.className === 'DocumentAttributeAudio' && attr.voice) {
+                    mimeType = 'audio/ogg';
+                  }
+                  if (attr.className === 'DocumentAttributeVideo' && attr.roundMessage) {
+                    mimeType = 'video/mp4';
+                  }
+                }
               }
-              mediaParts.push({ data: buffer.toString('base64'), mimeType });
-              console.log(`✅ [Chat ${chatId}] Media muvaffaqiyatli yuklandi (${mimeType})`);
+              // Agar photo bo'lsa
+              if (!mimeType && (rawMsg.media as any)?.photo) {
+                mimeType = 'image/jpeg';
+              }
+              if (!mimeType) mimeType = 'application/octet-stream';
+
+              mediaParts.push({ data: buf.toString('base64'), mimeType });
+              console.log(`✅ [Chat ${chatId}] Media muvaffaqiyatli yuklandi (${mimeType}, ${Math.round(buf.length / 1024)}KB)`);
             }
           } else {
             console.log(`⚠️ [Chat ${chatId}] Media hajmi juda katta (${fileSize} bytes), AI ga yuborilmadi.`);
