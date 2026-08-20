@@ -1,11 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+export interface MediaPart {
+  mimeType: string;
+  data: string; // base64
+}
+
 export interface ChatMessage {
   id: number;
   senderName: string;
   isMe: boolean;
   text: string;
   date: Date;
+  media?: MediaPart;
 }
 
 export class AIService {
@@ -26,7 +32,8 @@ export class AIService {
   public async generateResponse(
     partnerName: string,
     history: ChatMessage[],
-    incomingTexts: string[]
+    incomingTexts: string[],
+    mediaParts: MediaPart[] = []
   ): Promise<string> {
     if (!this.genAI) {
       throw new Error('Google Generative AI API kaliti topilmadi!');
@@ -43,7 +50,8 @@ export class AIService {
         .map((msg) => {
           const sender = msg.isMe ? 'Men (Komron)' : partnerName;
           const time = msg.date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
-          return `[${time}] ${sender}: ${msg.text}`;
+          const mediaLabel = msg.media ? ` [Fayl yuborildi: ${msg.media.mimeType}]` : '';
+          return `[${time}] ${sender}: ${msg.text}${mediaLabel}`;
         })
         .join('\n');
 
@@ -52,16 +60,26 @@ export class AIService {
       const userPrompt = `
 Quyida ${partnerName} bilan bo'lgan oldingi suhbat tarixi (oxirgi xabarlar):
 --- SUHBAT TARIXI (OXIRGI 50 TA XABAR) ---
-${formattedHistory || '(Hozircha oldingi xabarlar yo\'q)'}
+${formattedHistory || '(Hozircha oldingi xabarlar yo\\'q)'}
 ------------------------------------------
 
 YANGI KELGAN XABAR(LAR):
 ${currentMessageBlock}
 
-Vazifa: Yuqoridagi butun suhbat konteksti va yangi xabar(lar)ga asoslanib, ${partnerName} ga eng to'g'ri, mantiqiy va xushmuomala javob qaytaring. Faqat javob matnining o'zini yozing, ortiqcha izohlar qo'shmang.
+Vazifa: Yuqoridagi butun suhbat konteksti va yangi xabar(lar) (agar media fayl biriktirilgan bo'lsa uni ham tahlil qilib) asosida ${partnerName} ga eng to'g'ri, mantiqiy va xushmuomala javob qaytaring. Faqat javob matnining o'zini yozing.
 `;
 
-      const result = await model.generateContent(userPrompt);
+      const contents: any[] = [userPrompt];
+      for (const media of mediaParts) {
+        contents.push({
+          inlineData: {
+            data: media.data,
+            mimeType: media.mimeType
+          }
+        });
+      }
+
+      const result = await model.generateContent(contents);
       const response = await result.response;
       let text = response.text().trim();
 

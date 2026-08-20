@@ -137,10 +137,10 @@ export class TelegramService {
           // Non-fatal
         }
 
-        if (!text) return;
+        if (!text && !message.media) return;
 
-        console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${text}"`);
-        await this.queueAndProcessMessage(chatId, senderName, text, message);
+        console.log(`📩 [Yangi Xabar] ${senderName} (${chatId}): "${text || '[Media Fayl]'}"`);
+        await this.queueAndProcessMessage(chatId, senderName, text || '[Media Fayl]', message);
       } catch (handlerErr: any) {
         console.error('❌ Event Handler xatoligi:', handlerErr?.message || handlerErr);
       }
@@ -260,7 +260,32 @@ export class TelegramService {
       }
 
       console.log(`🧠 [AI] Gemini orqali javob generatsiya qilinmoqda...`);
-      const aiReply = await this.aiService.generateResponse(senderName, history, incomingTexts);
+      
+      const mediaParts: any[] = [];
+      if (rawMsg.media) {
+        try {
+          console.log(`📥 [Chat ${chatId}] Media fayl yuklanmoqda...`);
+          // Enforce a simple limit by skipping very large files (e.g. > 15MB)
+          const fileSize = rawMsg.file?.size || 0;
+          if (fileSize < 15 * 1024 * 1024) {
+            const buffer = await this.client.downloadMedia(rawMsg, { workers: 1 });
+            if (buffer) {
+              let mimeType = rawMsg.file?.mimeType || 'image/jpeg';
+              if (rawMsg.videoNote || rawMsg.voice) {
+                mimeType = rawMsg.voice ? 'audio/ogg' : 'video/mp4';
+              }
+              mediaParts.push({ data: buffer.toString('base64'), mimeType });
+              console.log(`✅ [Chat ${chatId}] Media muvaffaqiyatli yuklandi (${mimeType})`);
+            }
+          } else {
+            console.log(`⚠️ [Chat ${chatId}] Media hajmi juda katta (${fileSize} bytes), AI ga yuborilmadi.`);
+          }
+        } catch (mediaErr: any) {
+          console.error(`❌ [Chat ${chatId}] Media yuklashda xatolik:`, mediaErr?.message || mediaErr);
+        }
+      }
+
+      const aiReply = await this.aiService.generateResponse(senderName, history, incomingTexts, mediaParts);
 
       if (!aiReply || aiReply.trim().length === 0) {
         console.warn('⚠️ Bo\'sh javob qaytdi.');
