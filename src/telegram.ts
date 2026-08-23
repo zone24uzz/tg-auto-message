@@ -232,22 +232,18 @@ export class TelegramService {
     
     // Check if I am online
     let isOwnerOnline = false;
-    let timeSinceOffline = 9999; // seconds
     try {
       const me: any = await this.client.getEntity('me');
       if (me.status?.className === 'UserStatusOnline') {
         isOwnerOnline = true;
-      } else if (me.status?.className === 'UserStatusOffline' && me.status.wasOnline) {
-        const wasOnline = me.status.wasOnline; // unix timestamp in seconds
-        timeSinceOffline = Math.floor(Date.now() / 1000) - wasOnline;
       }
     } catch (e) {
       console.warn("Egasi statusini olishda xatolik:", e);
     }
 
-    if (isOwnerOnline || timeSinceOffline < 120) {
+    if (isOwnerOnline) {
       if (!state.onlineCheckTimer) {
-        console.log(`⏳ [Chat ${chatId}] Egasi onlayn yoki yaqinda chiqib ketgan (Offline bo'lganiga ${timeSinceOffline}s). 30 soniyadan keyin qayta tekshiriladi...`);
+        console.log(`⏳ [Chat ${chatId}] Egasi onlayn. 30 soniyadan keyin qayta tekshiriladi...`);
         state.onlineCheckTimer = setTimeout(() => {
           state.onlineCheckTimer = undefined;
           this.tryProcessMessages(chatId, senderName, rawMsg);
