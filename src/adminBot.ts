@@ -60,7 +60,9 @@ export class AdminBot {
         `/settings - Joriy sozlamalarni ko'rish\n` +
         `/setmodel - Gemini modelini o'zgartirish\n` +
         `/setlimit <son> - Kontekst tarixini o'zgartirish\n` +
-        `/setdelay <ms> - Kutish vaqtini o'zgartirish (masalan: 4000)\n` +
+        `/setdelay <ms> - Kutish vaqtini o'zgartirish\n` +
+        `/mute <id> - Chatni muzlatish (AI yozmaydi)\n` +
+        `/unmute <id> - Chatni muzlatishdan chiqarish\n` +
         `/setprompt <matn> - AI system promptini o'zgartirish`,
         { parse_mode: 'Markdown' }
       );
@@ -179,6 +181,29 @@ export class AdminBot {
       this.telegramService.updateConfig(loadConfig());
       ctx.reply(`✅ Kutish vaqti muvaffaqiyatli **${newDelay}ms** ga o'zgartirildi!`, { parse_mode: 'Markdown' });
     });
+    this.bot.command('mute', (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      const targetId = parts[1];
+      
+      if (!targetId) {
+        return ctx.reply('❌ Iltimos, muzlatmoqchi bo\'lgan chat ID sini kiriting. Masalan: `/mute 123456789`', { parse_mode: 'Markdown' });
+      }
+      
+      this.memoryManager.muteChat(targetId);
+      ctx.reply(`⏸ Chat (${targetId}) muvaffaqiyatli muzlatildi (mute)! AI bu chatga endi yozmaydi.`, { parse_mode: 'Markdown' });
+    });
+
+    this.bot.command('unmute', (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      const targetId = parts[1];
+      
+      if (!targetId) {
+        return ctx.reply('❌ Iltimos, muzlatishdan chiqarmoqchi bo\'lgan chat ID sini kiriting. Masalan: `/unmute 123456789`', { parse_mode: 'Markdown' });
+      }
+      
+      this.memoryManager.unmuteChat(targetId);
+      ctx.reply(`✅ Chat (${targetId}) muvaffaqiyatli muzlatishdan (mute) chiqarildi!`, { parse_mode: 'Markdown' });
+    });
   }
 
   public launch() {
@@ -191,7 +216,9 @@ export class AdminBot {
       { command: 'setmodel', description: "Gemini modelini o'zgartirish" },
       { command: 'setprompt', description: "AI system promptini o'zgartirish" },
       { command: 'setlimit', description: "Kontekst xabarlar sonini o'zgartirish" },
-      { command: 'setdelay', description: "Kutish vaqtini o'zgartirish (masalan: /setdelay 4000)" }
+      { command: 'setdelay', description: "Kutish vaqtini o'zgartirish" },
+      { command: 'mute', description: "Ma'lum bir chatni muzlatish (ID orqali)" },
+      { command: 'unmute', description: "Chatni muzlatishdan chiqarish (ID orqali)" }
     ]).catch(err => console.error("Komandalarni Telegramga yuborishda xatolik:", err));
 
     this.bot.launch().then(() => {
