@@ -2,6 +2,9 @@ import http from 'http';
 import { loadConfig } from './config.js';
 import { TelegramService } from './telegram.js';
 import { AdminBot } from './adminBot.js';
+import { setupLogger } from './logger.js';
+
+setupLogger();
 
 function startHealthCheckServer() {
   const port = process.env.PORT || 0;
@@ -38,7 +41,7 @@ async function bootstrap() {
     await service.start();
 
     if (config.botToken) {
-      const adminBot = new AdminBot(config, service.getMemoryManager(), service.getMeId());
+      const adminBot = new AdminBot(config, service);
       adminBot.launch();
     } else {
       console.log('⚠️ Boshqaruv boti ishga tushmadi: BOT_TOKEN ko\'rsatilmagan.');

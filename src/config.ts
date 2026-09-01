@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -16,6 +17,21 @@ export interface Config {
   systemPrompt: string;
   botToken: string;
   adminId: string;
+}
+
+const SETTINGS_FILE = path.resolve(process.cwd(), 'settings.json');
+
+export function saveDynamicSettings(settings: Partial<Config>) {
+  try {
+    let current = {};
+    if (fs.existsSync(SETTINGS_FILE)) {
+      current = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+    }
+    const updated = { ...current, ...settings };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Sozlamalarni saqlashda xatolik:', e);
+  }
 }
 
 export function loadConfig(): Config {
@@ -49,17 +65,26 @@ ASOSIY VAZIFALAR VA QOIDALAR:
 8. MUHIM: Agar foydalanuvchi sizdan "botmisan?", "sen kimsan?" deb shubhalansa yoki so'rasa, aslo o'zingizni sun'iy robotdek tutmang va bitta gapni quruq takrorlamang. Vaziyatga mos holda juda tabiiy va qisqa (masalan: "jinnimisan, o'zimman", "nimalar devossan 😂", "odamman-ku") javob bering. Suhbatdosh sizning bot ekanligingizni sezmasligi kerak.
 9. Agar foydalanuvchi ovozli xabar (voice), dumaloq video (video note), rasm yoki video yuborgan bo'lsa, siz uni ko'rasiz/eshitasiz. Undagi mazmunni tushunib, suhbat kontekstiga mos ravishda javob bering. Masalan, ovozli xabarda savol berilgan bo'lsa — javob qaytaring. Rasm yuborilgan bo'lsa — rasm haqida fikr bildiring.`;
 
+  let dynamicSettings: any = {};
+  if (fs.existsSync(SETTINGS_FILE)) {
+    try {
+      dynamicSettings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+    } catch (e) {
+      // ignore
+    }
+  }
+
   return {
     apiId,
     apiHash,
     sessionString: process.env.TELEGRAM_SESSION || '',
     geminiApiKey,
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-3.6-flash',
-    historyLimit: parseInt(process.env.HISTORY_LIMIT || '50', 10),
-    debounceMs: parseInt(process.env.DEBOUNCE_MS || '4000', 10),
-    simulateTyping: process.env.SIMULATE_TYPING !== 'false',
+    geminiModel: dynamicSettings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+    historyLimit: dynamicSettings.historyLimit || parseInt(process.env.HISTORY_LIMIT || '50', 10),
+    debounceMs: dynamicSettings.debounceMs || parseInt(process.env.DEBOUNCE_MS || '4000', 10),
+    simulateTyping: dynamicSettings.simulateTyping !== undefined ? dynamicSettings.simulateTyping : process.env.SIMULATE_TYPING !== 'false',
     blacklistUsers,
-    systemPrompt: defaultSystemPrompt,
+    systemPrompt: dynamicSettings.systemPrompt || defaultSystemPrompt,
     botToken: process.env.BOT_TOKEN || '',
     adminId: process.env.ADMIN_ID || '',
   };

@@ -36,6 +36,16 @@ export class TelegramService {
     return this.me ? this.me.id.toString() : '';
   }
 
+  public updateConfig(newConfig: Config) {
+    this.config = newConfig;
+    this.aiService = new AIService(
+      newConfig.geminiApiKey,
+      newConfig.geminiModel,
+      newConfig.systemPrompt
+    );
+    console.log('🔄 TelegramService sozlamalari yangilandi.');
+  }
+
   private loadSessionString(): string {
     if (this.config.sessionString && this.config.sessionString.trim().length > 0) {
       return this.config.sessionString.trim();
