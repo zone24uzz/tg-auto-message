@@ -358,6 +358,11 @@ export class TelegramService {
         return;
       }
 
+      if (this.memoryManager.isChatMuted(chatId)) {
+        console.log(`⏸️ [Chat ${chatId}] AI javob tayyorladi, lekin chat hozirgina egasi tomonidan muzlatildi, yuborilmaydi.`);
+        return;
+      }
+
       if (aiReply.includes('IGNORE_MESSAGE')) {
         console.log('🔇 [AI] Xabar inkor qilindi (shaxsiy/norasmiy). Javob berilmaydi.');
         return;
