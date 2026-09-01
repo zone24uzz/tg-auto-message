@@ -128,11 +128,9 @@ export class AdminBot {
       
       // Aks holda knopkalarni chiqaramiz
       ctx.reply('👇 Qaysi modelni ishlatmoqchisiz? Tanlang:', Markup.inlineKeyboard([
-        [Markup.button.callback('⚡️ Gemini 1.5 Flash', 'model_gemini-1.5-flash')],
-        [Markup.button.callback('🧠 Gemini 1.5 Pro', 'model_gemini-1.5-pro')],
-        [Markup.button.callback('🚀 Gemini 2.0 Flash', 'model_gemini-2.0-flash')],
-        [Markup.button.callback('🔮 Gemini 2.0 Pro', 'model_gemini-2.0-pro')],
-        [Markup.button.callback('🎯 Gemini 3.6 Flash', 'model_gemini-3.6-flash')]
+        [Markup.button.callback('⚡️ 3.5 Flash-Lite (Fast)', 'model_gemini-3.5-flash-lite')],
+        [Markup.button.callback('🚀 3.7 Flash (All-around)', 'model_gemini-3.7-flash')],
+        [Markup.button.callback('🧠 3.1 Pro (Advanced)', 'model_gemini-3.1-pro')]
       ]));
     });
 
