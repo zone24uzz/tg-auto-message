@@ -112,7 +112,7 @@ export class TelegramService {
 
         if (isFromMe) {
           if (text.startsWith('.')) {
-            await this.handleCommands(message, text);
+            await this.handleCommands(message, text, chatId);
           } else if (chatId) {
             // AI ning o'zi yozgan xabari bo'lsa, inkor qilish (o'zini o'zi muzlatmasligi uchun)
             if (this.recentBotReplies.has(text)) {
@@ -173,30 +173,34 @@ export class TelegramService {
     }, new NewMessage({}));
   }
 
-  private async handleCommands(message: any, text: string) {
+  private async handleCommands(message: any, text: string, chatId: string) {
     const parts = text.split(' ');
     const cmd = parts[0].toLowerCase();
 
     if (cmd === '.ai') {
       const subCmd = parts[1]?.toLowerCase();
-      if (subCmd === 'on') {
-        this.memoryManager.setEnabled(true);
-        await message.edit({ text: '🟢 **AI Auto-Responder yoqildi!**' });
-      } else if (subCmd === 'off') {
-        this.memoryManager.setEnabled(false);
-        await message.edit({ text: '🔴 **AI Auto-Responder o\'chirildi!**' });
-      } else if (subCmd === 'status') {
-        const status = this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq';
-        await message.edit({
-          text: `📊 **AI Holati:** ${status}\nModel: \`${this.config.geminiModel}\`\nKontekst: \`${this.config.historyLimit} ta xabar\``,
-        });
-      } else if (subCmd === 'unmute' && message.chatId) {
-        this.memoryManager.unmuteChat(message.chatId.toString());
-        await message.edit({ text: '⚡ **Ushbu chatda AI qayta faollashtirildi.**' });
-      } else {
-        await message.edit({
-          text: `💡 **AI Komandalar:**\n• \`.ai on\` - Yoqish\n• \`.ai off\` - O'chirish\n• \`.ai status\` - Holat\n• \`.ai unmute\` - Chatni ochish`,
-        });
+      try {
+        if (subCmd === 'on') {
+          this.memoryManager.setEnabled(true);
+          await message.edit({ text: '🟢 **AI Auto-Responder yoqildi!**' });
+        } else if (subCmd === 'off') {
+          this.memoryManager.setEnabled(false);
+          await message.edit({ text: '🔴 **AI Auto-Responder o\'chirildi!**' });
+        } else if (subCmd === 'status') {
+          const status = this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq';
+          await message.edit({
+            text: `📊 **AI Holati:** ${status}\nModel: \`${this.config.geminiModel}\`\nKontekst: \`${this.config.historyLimit} ta xabar\``,
+          });
+        } else if (subCmd === 'unmute' && chatId) {
+          this.memoryManager.unmuteChat(chatId);
+          await message.edit({ text: '⚡ **Ushbu chatda AI qayta faollashtirildi.**' });
+        } else {
+          await message.edit({
+            text: `💡 **AI Komandalar:**\n• \`.ai on\` - Yoqish\n• \`.ai off\` - O'chirish\n• \`.ai status\` - Holat\n• \`.ai unmute\` - Chatni ochish`,
+          });
+        }
+      } catch (err: any) {
+        console.error('❌ Command xatosi (edit qilib bo\'lmadi):', err?.message || err);
       }
     }
   }
