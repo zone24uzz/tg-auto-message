@@ -60,6 +60,7 @@ export class AdminBot {
         `/settings - Joriy sozlamalarni ko'rish\n` +
         `/setmodel - Gemini modelini o'zgartirish\n` +
         `/setlimit <son> - Kontekst tarixini o'zgartirish\n` +
+        `/setdelay <ms> - Kutish vaqtini o'zgartirish (masalan: 4000)\n` +
         `/setprompt <matn> - AI system promptini o'zgartirish`,
         { parse_mode: 'Markdown' }
       );
@@ -165,6 +166,19 @@ export class AdminBot {
       this.telegramService.updateConfig(loadConfig());
       ctx.reply(`✅ Kontekst (tarix) muvaffaqiyatli **${newLimit}** ta xabarga o'zgartirildi!`, { parse_mode: 'Markdown' });
     });
+
+    this.bot.command('setdelay', (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      const newDelay = parseInt(parts[1], 10);
+      
+      if (isNaN(newDelay) || newDelay < 0 || newDelay > 60000) {
+        return ctx.reply('❌ Iltimos, to\'g\'ri millisoniya (ms) kiriting. Masalan 4 soniya uchun: `/setdelay 4000`', { parse_mode: 'Markdown' });
+      }
+      
+      saveDynamicSettings({ debounceMs: newDelay });
+      this.telegramService.updateConfig(loadConfig());
+      ctx.reply(`✅ Kutish vaqti muvaffaqiyatli **${newDelay}ms** ga o'zgartirildi!`, { parse_mode: 'Markdown' });
+    });
   }
 
   public launch() {
@@ -176,7 +190,8 @@ export class AdminBot {
       { command: 'off', description: "AIni barcha chatlar uchun o'chirish" },
       { command: 'setmodel', description: "Gemini modelini o'zgartirish" },
       { command: 'setprompt', description: "AI system promptini o'zgartirish" },
-      { command: 'setlimit', description: "Kontekst xabarlar sonini o'zgartirish (masalan: /setlimit 50)" }
+      { command: 'setlimit', description: "Kontekst xabarlar sonini o'zgartirish" },
+      { command: 'setdelay', description: "Kutish vaqtini o'zgartirish (masalan: /setdelay 4000)" }
     ]).catch(err => console.error("Komandalarni Telegramga yuborishda xatolik:", err));
 
     this.bot.launch().then(() => {
