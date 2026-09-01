@@ -58,7 +58,8 @@ export class AdminBot {
         `/status - AIning holati va muzlatilgan chatlarni ko'rish\n` +
         `/logs - Oxirgi 30 ta tizim loglarini ko'rish\n` +
         `/settings - Joriy sozlamalarni ko'rish\n` +
-        `/setmodel <model> - Gemini modelini o'zgartirish\n` +
+        `/setmodel - Gemini modelini o'zgartirish\n` +
+        `/setlimit <son> - Kontekst tarixini o'zgartirish\n` +
         `/setprompt <matn> - AI system promptini o'zgartirish`,
         { parse_mode: 'Markdown' }
       );
@@ -152,6 +153,18 @@ export class AdminBot {
       this.telegramService.updateConfig(loadConfig());
       ctx.reply(`✅ System prompt muvaffaqiyatli o'zgartirildi!`);
     });
+    this.bot.command('setlimit', (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      const newLimit = parseInt(parts[1], 10);
+      
+      if (isNaN(newLimit) || newLimit < 1 || newLimit > 200) {
+        return ctx.reply('❌ Iltimos, 1 dan 200 gacha bo\'lgan son kiriting. Masalan: `/setlimit 50`', { parse_mode: 'Markdown' });
+      }
+      
+      saveDynamicSettings({ historyLimit: newLimit });
+      this.telegramService.updateConfig(loadConfig());
+      ctx.reply(`✅ Kontekst (tarix) muvaffaqiyatli **${newLimit}** ta xabarga o'zgartirildi!`, { parse_mode: 'Markdown' });
+    });
   }
 
   public launch() {
@@ -162,7 +175,8 @@ export class AdminBot {
       { command: 'on', description: "AIni barcha chatlar uchun yoqish" },
       { command: 'off', description: "AIni barcha chatlar uchun o'chirish" },
       { command: 'setmodel', description: "Gemini modelini o'zgartirish" },
-      { command: 'setprompt', description: "AI system promptini o'zgartirish" }
+      { command: 'setprompt', description: "AI system promptini o'zgartirish" },
+      { command: 'setlimit', description: "Kontekst xabarlar sonini o'zgartirish (masalan: /setlimit 50)" }
     ]).catch(err => console.error("Komandalarni Telegramga yuborishda xatolik:", err));
 
     this.bot.launch().then(() => {
