@@ -17,6 +17,7 @@ export interface Config {
   systemPrompt: string;
   botToken: string;
   adminId: string;
+  adminPassword?: string;
 }
 
 const SETTINGS_FILE = path.resolve(process.cwd(), 'settings.json');
@@ -86,6 +87,7 @@ ASOSIY VAZIFALAR VA QOIDALAR:
     blacklistUsers,
     systemPrompt: dynamicSettings.systemPrompt || defaultSystemPrompt,
     botToken: process.env.BOT_TOKEN || '',
-    adminId: process.env.ADMIN_ID || '',
+    adminId: dynamicSettings.adminId || process.env.ADMIN_ID || '',
+    adminPassword: process.env.ADMIN_PASSWORD || 'komron2026',
   };
 }

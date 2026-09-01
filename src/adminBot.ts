@@ -10,11 +10,14 @@ export class AdminBot {
   private telegramService: TelegramService;
   private adminId: string;
 
+  private adminPassword?: string;
+
   constructor(config: Config, telegramService: TelegramService) {
     this.telegramService = telegramService;
     this.memoryManager = telegramService.getMemoryManager();
     this.bot = new Telegraf(config.botToken);
     this.adminId = config.adminId || telegramService.getMeId() || '';
+    this.adminPassword = config.adminPassword;
 
     this.setupHandlers();
   }
@@ -22,16 +25,26 @@ export class AdminBot {
   private setupHandlers() {
     this.bot.use(async (ctx, next) => {
       const userId = ctx.from?.id.toString();
-      
-      if (!this.adminId && userId) {
-        this.adminId = userId;
-        console.log(`👑 Boshqaruv boti admini o'rnatildi: ${this.adminId}`);
+      const text = (ctx.message as any)?.text || '';
+
+      if (userId === this.adminId) {
+        return next();
       }
 
-      if (userId !== this.adminId) {
-        return;
+      // Agar hali admin tasdiqlanmagan bo'lsa yoki admin boshqa bo'lsa
+      if (text.startsWith('/login ')) {
+        const pass = text.split(' ')[1];
+        if (pass === this.adminPassword) {
+          this.adminId = userId || '';
+          saveDynamicSettings({ adminId: this.adminId });
+          console.log(`👑 Yangi boshqaruv boti admini o'rnatildi: ${this.adminId}`);
+          return ctx.reply('✅ Parol to\'g\'ri! Siz endi bot adminisiz. /start komandasini bosing.');
+        } else {
+          return ctx.reply('❌ Parol noto\'g\'ri!');
+        }
       }
-      return next();
+
+      return ctx.reply('🔒 Kechirasiz, siz ushbu botni boshqarish huquqiga ega emassiz. Agar admin bo\'lsangiz, `/login parol` shaklida parolingizni kiriting.', { parse_mode: 'Markdown' });
     });
 
     this.bot.start((ctx) => {
