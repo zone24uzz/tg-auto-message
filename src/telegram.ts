@@ -50,8 +50,12 @@ export class TelegramService {
     try {
       // id raqam bo'lsa uni songa o'giramiz, aks holda (masalan @username) o'zini qoldiramiz. 
       // GramJS BigInt kutmasligi mumkin, shuning uchun "as any" ishlatamiz.
-      const entityId = /^\d+$/.test(peerId) ? peerId : peerId;
-      const entity = await this.client.getEntity(entityId as any) as any;
+      let entityId: any = peerId;
+      if (typeof peerId === 'string' && peerId.startsWith('@')) {
+        entityId = peerId.substring(1);
+      }
+      
+      const entity = await this.client.getEntity(entityId) as any;
       
       if (entity) {
         return {

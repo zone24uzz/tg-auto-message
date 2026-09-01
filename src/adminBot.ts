@@ -187,15 +187,15 @@ export class AdminBot {
       const targetId = parts[1];
       
       if (!targetId) {
-        return ctx.reply('❌ Iltimos, muzlatmoqchi bo\'lgan chat ID sini kiriting. Masalan: `/mute 123456789`', { parse_mode: 'Markdown' });
+        return ctx.reply('❌ Iltimos, muzlatmoqchi bo\'lgan chat ID sini kiriting. Masalan: <code>/mute 123456789</code>', { parse_mode: 'HTML' });
       }
       
       this.memoryManager.muteChat(targetId);
       const userInfo = await this.telegramService.getUserInfo(targetId);
-      let text = `⏸ **Muvaffaqiyatli muzlatildi (Mute)!** AI bu chatga endi yozmaydi.\n\n`;
+      let text = `⏸ <b>Muvaffaqiyatli muzlatildi (Mute)!</b> AI bu chatga endi yozmaydi.\n\n`;
       text += this.formatUserInfo(targetId, userInfo);
       
-      ctx.reply(text, { parse_mode: 'Markdown' });
+      ctx.reply(text, { parse_mode: 'HTML' }).catch(e => console.error("Mute reply error:", e));
     });
 
     this.bot.command('unmute', async (ctx) => {
@@ -203,15 +203,15 @@ export class AdminBot {
       const targetId = parts[1];
       
       if (!targetId) {
-        return ctx.reply('❌ Iltimos, muzlatishdan chiqarmoqchi bo\'lgan chat ID sini kiriting. Masalan: `/unmute 123456789`', { parse_mode: 'Markdown' });
+        return ctx.reply('❌ Iltimos, muzlatishdan chiqarmoqchi bo\'lgan chat ID sini kiriting. Masalan: <code>/unmute 123456789</code>', { parse_mode: 'HTML' });
       }
       
       this.memoryManager.unmuteChat(targetId);
       const userInfo = await this.telegramService.getUserInfo(targetId);
-      let text = `✅ **Muvaffaqiyatli muzlatishdan (Unmute) chiqarildi!**\n\n`;
+      let text = `✅ <b>Muvaffaqiyatli muzlatishdan (Unmute) chiqarildi!</b>\n\n`;
       text += this.formatUserInfo(targetId, userInfo);
       
-      ctx.reply(text, { parse_mode: 'Markdown' });
+      ctx.reply(text, { parse_mode: 'HTML' }).catch(e => console.error("Unmute reply error:", e));
     });
 
     this.bot.command('info', async (ctx) => {
@@ -219,11 +219,11 @@ export class AdminBot {
       const targetId = parts[1];
       
       if (!targetId) {
-        return ctx.reply('❌ Iltimos, chat ID sini kiriting. Masalan: `/info 123456789`', { parse_mode: 'Markdown' });
+        return ctx.reply('❌ Iltimos, chat ID yoki username kiriting. Masalan: <code>/info 123456789</code>', { parse_mode: 'HTML' });
       }
 
       const userInfo = await this.telegramService.getUserInfo(targetId);
-      ctx.reply(this.formatUserInfo(targetId, userInfo), { parse_mode: 'Markdown' });
+      ctx.reply(this.formatUserInfo(targetId, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Info reply error:", e));
     });
 
     // Faqat ID yoki username tashlanganda ma'lumot chiqarish uchun
@@ -234,27 +234,25 @@ export class AdminBot {
       // Agar text faqat raqam yoki @ bilan boshlangan username bo'lsa
       if (/^@?\w+$/.test(text) || /^-?\d+$/.test(text)) {
         const userInfo = await this.telegramService.getUserInfo(text);
-        if (userInfo) {
-          return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'Markdown' });
-        }
+        return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Text info reply error:", e));
       }
       return next();
     });
   }
 
   private formatUserInfo(targetId: string, info: any): string {
-    if (!info) return `🆔 **Kiritilgan:** \`${targetId}\`\n*(Ma'lumot topilmadi. Yoki bot bu odamni umuman tanimaydi)*`;
+    if (!info) return `🆔 <b>Kiritilgan:</b> <code>${targetId}</code>\n<i>(Ma'lumot topilmadi. Yoki bot bu odamni umuman tanimaydi)</i>`;
     
-    let text = `👤 **Profil Ma'lumotlari:**\n`;
-    text += `🆔 **ID:** \`${info.id || targetId}\`\n`;
+    let text = `👤 <b>Profil Ma'lumotlari:</b>\n`;
+    text += `🆔 <b>ID:</b> <code>${info.id || targetId}</code>\n`;
     
     if (info.title) {
-      text += `🏷 **Guruh/Kanal:** ${info.title}\n`;
+      text += `🏷 <b>Guruh/Kanal:</b> ${info.title}\n`;
     } else {
-      if (info.firstName) text += `👤 **Ism:** ${info.firstName}\n`;
-      if (info.lastName) text += `👥 **Familiya:** ${info.lastName}\n`;
+      if (info.firstName) text += `👤 <b>Ism:</b> ${info.firstName}\n`;
+      if (info.lastName) text += `👥 <b>Familiya:</b> ${info.lastName}\n`;
     }
-    if (info.username) text += `🔗 **Username:** @${info.username}\n`;
+    if (info.username) text += `🔗 <b>Username:</b> @${info.username}\n`;
     
     return text;
   }
