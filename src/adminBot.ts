@@ -243,10 +243,10 @@ export class AdminBot {
   }
 
   private formatUserInfo(targetId: string, info: any): string {
-    if (!info) return `🆔 **ID:** \`${targetId}\`\n*(Ma'lumot topilmadi yoki bot u bilan hech qachon yozishmagan)*`;
+    if (!info) return `🆔 **Kiritilgan:** \`${targetId}\`\n*(Ma'lumot topilmadi. Yoki bot bu odamni umuman tanimaydi)*`;
     
     let text = `👤 **Profil Ma'lumotlari:**\n`;
-    text += `🆔 **ID:** \`${targetId}\`\n`;
+    text += `🆔 **ID:** \`${info.id || targetId}\`\n`;
     
     if (info.title) {
       text += `🏷 **Guruh/Kanal:** ${info.title}\n`;

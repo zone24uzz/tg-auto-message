@@ -46,7 +46,7 @@ export class TelegramService {
     console.log('🔄 TelegramService sozlamalari yangilandi.');
   }
 
-  public async getUserInfo(peerId: string): Promise<{ firstName: string, lastName: string, username: string, title: string } | null> {
+  public async getUserInfo(peerId: string): Promise<{ id: string, firstName: string, lastName: string, username: string, title: string } | null> {
     try {
       // id raqam bo'lsa uni songa o'giramiz, aks holda (masalan @username) o'zini qoldiramiz. 
       // GramJS BigInt kutmasligi mumkin, shuning uchun "as any" ishlatamiz.
@@ -55,6 +55,7 @@ export class TelegramService {
       
       if (entity) {
         return {
+          id: entity.id ? entity.id.toString() : '',
           firstName: entity.firstName || '',
           lastName: entity.lastName || '',
           username: entity.username || '',
