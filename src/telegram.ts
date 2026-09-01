@@ -48,9 +48,10 @@ export class TelegramService {
 
   public async getUserInfo(peerId: string): Promise<{ firstName: string, lastName: string, username: string, title: string } | null> {
     try {
-      // id raqam bo'lsa uni songa o'giramiz, aks holda (masalan @username) o'zini qoldiramiz
-      const entityId = /^\d+$/.test(peerId) ? BigInt(peerId) : peerId;
-      const entity = await this.client.getEntity(entityId) as any;
+      // id raqam bo'lsa uni songa o'giramiz, aks holda (masalan @username) o'zini qoldiramiz. 
+      // GramJS BigInt kutmasligi mumkin, shuning uchun "as any" ishlatamiz.
+      const entityId = /^\d+$/.test(peerId) ? peerId : peerId;
+      const entity = await this.client.getEntity(entityId as any) as any;
       
       if (entity) {
         return {
