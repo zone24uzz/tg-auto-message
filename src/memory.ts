@@ -64,6 +64,22 @@ export class MemoryManager {
     return true;
   }
 
+  public getChatState(chatId: string): ChatState | undefined {
+    return this.chatStates.get(chatId);
+  }
+
+  public adjustMuteTime(chatId: string, minutes: number) {
+    const state = this.chatStates.get(chatId);
+    if (!state || !state.isMuted) return;
+
+    if (state.mutedUntil) {
+      state.mutedUntil = new Date(state.mutedUntil.getTime() + minutes * 60 * 1000);
+      if (state.mutedUntil.getTime() <= Date.now()) {
+        this.unmuteChat(chatId);
+      }
+    }
+  }
+
   public unmuteChat(chatId: string) {
     const state = this.chatStates.get(chatId);
     if (state) {

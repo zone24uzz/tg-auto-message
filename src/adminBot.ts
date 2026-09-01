@@ -91,18 +91,33 @@ export class AdminBot {
     });
 
     this.bot.command('status', (ctx) => {
-      const status = this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq';
-      const mutedChats = this.memoryManager.getMutedChats();
-      let mutedText = 'Muzlatilgan chatlar yo\'q.';
-      if (mutedChats.length > 0) {
-        mutedText = 'Muzlatilgan chatlar (ID):\n' + mutedChats.join('\n');
-      }
+      this.sendStatusMenu(ctx);
+    });
 
-      ctx.reply(
-        `📊 **AI Holati:** ${status}\n\n` +
-        `🔕 **Muzlatilgan chatlar:**\n${mutedText}`,
-        { parse_mode: 'Markdown' }
-      );
+    this.bot.action('status_main', (ctx) => {
+      ctx.answerCbQuery().catch(() => {});
+      this.sendStatusMenu(ctx, true);
+    });
+
+    this.bot.action(/^status_chat_(.+)$/, async (ctx) => {
+      const chatId = ctx.match[1];
+      await this.showMutedChatInfo(ctx, chatId);
+    });
+
+    this.bot.action(/^status_adj_(.+)_(.+)$/, async (ctx) => {
+      const chatId = ctx.match[1];
+      const mins = parseInt(ctx.match[2], 10);
+      
+      this.memoryManager.adjustMuteTime(chatId, mins);
+      ctx.answerCbQuery(`${mins > 0 ? '+' : ''}${mins} daqiqa!`).catch(() => {});
+      await this.showMutedChatInfo(ctx, chatId);
+    });
+
+    this.bot.action(/^status_unmute_(.+)$/, async (ctx) => {
+      const chatId = ctx.match[1];
+      this.memoryManager.unmuteChat(chatId);
+      ctx.answerCbQuery('Muvaffaqiyatli ochildi!').catch(() => {});
+      this.sendStatusMenu(ctx, true);
     });
 
     this.bot.command('settings', (ctx) => {
@@ -285,6 +300,74 @@ export class AdminBot {
     if (info.username) text += `🔗 <b>Username:</b> @${info.username}\n`;
     
     return text;
+  }
+
+  private sendStatusMenu(ctx: any, isEdit = false) {
+    const status = this.memoryManager.isEnabled() ? '🟢 Yoniq' : '🔴 O\'chiq';
+    const mutedChats = this.memoryManager.getMutedChats();
+    
+    let text = `📊 <b>AI Global Holati:</b> ${status}\n\n`;
+    let buttons = [];
+
+    if (mutedChats.length === 0) {
+      text += `🔕 <b>Muzlatilgan chatlar:</b> Yo'q.`;
+    } else {
+      text += `🔕 <b>Muzlatilgan chatlar (${mutedChats.length} ta):</b>\nBatafsil ma'lumot uchun quyidagilardan birini tanlang:`;
+      for (const chatId of mutedChats) {
+        buttons.push([Markup.button.callback(`👤 Chat: ${chatId}`, `status_chat_${chatId}`)]);
+      }
+    }
+
+    const markup = buttons.length > 0 ? Markup.inlineKeyboard(buttons) : {};
+    
+    if (isEdit) {
+      ctx.editMessageText(text, { parse_mode: 'HTML', ...markup }).catch(() => {});
+    } else {
+      ctx.reply(text, { parse_mode: 'HTML', ...markup }).catch((e: any) => console.error(e));
+    }
+  }
+
+  private async showMutedChatInfo(ctx: any, chatId: string) {
+    const isMuted = this.memoryManager.isChatMuted(chatId);
+    if (!isMuted) {
+      ctx.answerCbQuery('Bu chat endi muzlatilmagan!').catch(() => {});
+      return this.sendStatusMenu(ctx, true);
+    }
+
+    const state = this.memoryManager.getChatState(chatId);
+    const userInfo = await this.telegramService.getUserInfo(chatId);
+    
+    let text = `🔕 <b>Muzlatilgan Chat Ma'lumoti:</b>\n\n`;
+    text += this.formatUserInfo(chatId, userInfo) + `\n`;
+    
+    let buttons = [];
+    if (!state?.mutedUntil) {
+      text += `⏳ <b>Holati:</b> 🔒 Mangu muzlatilgan (Siz ochmaguningizcha AI yozmaydi)\n`;
+      buttons.push([Markup.button.callback('🔊 Unmute (Ochish)', `status_unmute_${chatId}`)]);
+    } else {
+      const now = Date.now();
+      const diffMs = state.mutedUntil.getTime() - now;
+      const diffMin = Math.ceil(diffMs / 60000);
+      
+      text += `⏳ <b>Holati:</b> Muzlatilgan\n`;
+      let readableTime = diffMin >= 60 ? `${(diffMin / 60).toFixed(1)} soat` : `${diffMin} daqiqa`;
+      text += `⏰ <b>Qachon ochiladi:</b> ${readableTime}dan so'ng\n`;
+      
+      buttons.push([
+        Markup.button.callback('➖ 30 daq', `status_adj_${chatId}_-30`),
+        Markup.button.callback('➕ 30 daq', `status_adj_${chatId}_30`)
+      ]);
+      buttons.push([
+        Markup.button.callback('➖ 1 soat', `status_adj_${chatId}_-60`),
+        Markup.button.callback('➕ 1 soat', `status_adj_${chatId}_60`)
+      ]);
+      buttons.push([Markup.button.callback('🔊 Unmute (Ochish)', `status_unmute_${chatId}`)]);
+    }
+    
+    buttons.push([Markup.button.callback('🔙 Orqaga', 'status_main')]);
+
+    ctx.answerCbQuery().catch(() => {});
+    ctx.editMessageText(text, { parse_mode: 'HTML', ...Markup.inlineKeyboard(buttons) }).catch(() => {});
   }
 
   public launch() {
