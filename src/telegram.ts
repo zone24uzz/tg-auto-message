@@ -15,6 +15,7 @@ export class TelegramService {
   private memoryManager: MemoryManager;
   private me: any = null;
   private sessionFile: string;
+  private recentBotReplies: Set<string> = new Set();
 
   constructor(config: Config) {
     this.config = config;
@@ -113,6 +114,11 @@ export class TelegramService {
           if (text.startsWith('.')) {
             await this.handleCommands(message, text);
           } else if (chatId) {
+            // AI ning o'zi yozgan xabari bo'lsa, inkor qilish (o'zini o'zi muzlatmasligi uchun)
+            if (this.recentBotReplies.has(text)) {
+              console.log(`🤖 [Chat ${chatId}] AI o'z javobini o'qidi, inkor qilinmoqda...`);
+              return;
+            }
             console.log(`⏸️ [Chat ${chatId}] Egasi o'zi yozdi. Chat 15 daqiqaga muzlatildi.`);
             this.memoryManager.muteChat(chatId, 15);
           }
@@ -359,10 +365,14 @@ export class TelegramService {
 
       // 3. Javobni to'g'ridan-to'g'ri xabarga reply qilish yoki yuborish
       try {
+        this.recentBotReplies.add(aiReply);
+        setTimeout(() => this.recentBotReplies.delete(aiReply), 10000); // 10 soniyadan keyin tozalash
         await rawMsg.reply({ message: aiReply });
         console.log(`📤 [Muvaffaqiyatli Reply Yuborildi] ${senderName} ga: "${aiReply}"\n`);
       } catch (replyErr) {
         // Fallback: sendMessage
+        this.recentBotReplies.add(aiReply);
+        setTimeout(() => this.recentBotReplies.delete(aiReply), 10000);
         await this.client.sendMessage(rawMsg.peerId || chatId, { message: aiReply });
         console.log(`📤 [Muvaffaqiyatli Send Yuborildi] ${senderName} ga: "${aiReply}"\n`);
       }
