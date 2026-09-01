@@ -46,6 +46,27 @@ export class TelegramService {
     console.log('🔄 TelegramService sozlamalari yangilandi.');
   }
 
+  public async getUserInfo(peerId: string): Promise<{ firstName: string, lastName: string, username: string, title: string } | null> {
+    try {
+      // id raqam bo'lsa uni songa o'giramiz, aks holda (masalan @username) o'zini qoldiramiz
+      const entityId = /^\d+$/.test(peerId) ? BigInt(peerId) : peerId;
+      const entity = await this.client.getEntity(entityId) as any;
+      
+      if (entity) {
+        return {
+          firstName: entity.firstName || '',
+          lastName: entity.lastName || '',
+          username: entity.username || '',
+          title: entity.title || '' // guruhlar yoki kanallar uchun
+        };
+      }
+      return null;
+    } catch (e) {
+      console.error(`Foydalanuvchi ma'lumotini olishda xatolik (${peerId}):`, e);
+      return null;
+    }
+  }
+
   private loadSessionString(): string {
     if (this.config.sessionString && this.config.sessionString.trim().length > 0) {
       return this.config.sessionString.trim();

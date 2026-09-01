@@ -63,6 +63,7 @@ export class AdminBot {
         `/setdelay <ms> - Kutish vaqtini o'zgartirish\n` +
         `/mute <id> - Chatni muzlatish (AI yozmaydi)\n` +
         `/unmute <id> - Chatni muzlatishdan chiqarish\n` +
+        `/info <id> - Chat ID egasi kimligini ko'rish\n` +
         `/setprompt <matn> - AI system promptini o'zgartirish`,
         { parse_mode: 'Markdown' }
       );
@@ -181,7 +182,7 @@ export class AdminBot {
       this.telegramService.updateConfig(loadConfig());
       ctx.reply(`✅ Kutish vaqti muvaffaqiyatli **${newDelay}ms** ga o'zgartirildi!`, { parse_mode: 'Markdown' });
     });
-    this.bot.command('mute', (ctx) => {
+    this.bot.command('mute', async (ctx) => {
       const parts = ctx.message.text.split(' ');
       const targetId = parts[1];
       
@@ -190,10 +191,14 @@ export class AdminBot {
       }
       
       this.memoryManager.muteChat(targetId);
-      ctx.reply(`⏸ Chat (${targetId}) muvaffaqiyatli muzlatildi (mute)! AI bu chatga endi yozmaydi.`, { parse_mode: 'Markdown' });
+      const userInfo = await this.telegramService.getUserInfo(targetId);
+      let text = `⏸ **Muvaffaqiyatli muzlatildi (Mute)!** AI bu chatga endi yozmaydi.\n\n`;
+      text += this.formatUserInfo(targetId, userInfo);
+      
+      ctx.reply(text, { parse_mode: 'Markdown' });
     });
 
-    this.bot.command('unmute', (ctx) => {
+    this.bot.command('unmute', async (ctx) => {
       const parts = ctx.message.text.split(' ');
       const targetId = parts[1];
       
@@ -202,8 +207,56 @@ export class AdminBot {
       }
       
       this.memoryManager.unmuteChat(targetId);
-      ctx.reply(`✅ Chat (${targetId}) muvaffaqiyatli muzlatishdan (mute) chiqarildi!`, { parse_mode: 'Markdown' });
+      const userInfo = await this.telegramService.getUserInfo(targetId);
+      let text = `✅ **Muvaffaqiyatli muzlatishdan (Unmute) chiqarildi!**\n\n`;
+      text += this.formatUserInfo(targetId, userInfo);
+      
+      ctx.reply(text, { parse_mode: 'Markdown' });
     });
+
+    this.bot.command('info', async (ctx) => {
+      const parts = ctx.message.text.split(' ');
+      const targetId = parts[1];
+      
+      if (!targetId) {
+        return ctx.reply('❌ Iltimos, chat ID sini kiriting. Masalan: `/info 123456789`', { parse_mode: 'Markdown' });
+      }
+
+      const userInfo = await this.telegramService.getUserInfo(targetId);
+      ctx.reply(this.formatUserInfo(targetId, userInfo), { parse_mode: 'Markdown' });
+    });
+
+    // Faqat ID yoki username tashlanganda ma'lumot chiqarish uchun
+    this.bot.on('text', async (ctx, next) => {
+      const text = ctx.message.text.trim();
+      if (text.startsWith('/')) return next(); // Komandalar uchun o'tkazib yuborish
+      
+      // Agar text faqat raqam yoki @ bilan boshlangan username bo'lsa
+      if (/^@?\w+$/.test(text) || /^-?\d+$/.test(text)) {
+        const userInfo = await this.telegramService.getUserInfo(text);
+        if (userInfo) {
+          return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'Markdown' });
+        }
+      }
+      return next();
+    });
+  }
+
+  private formatUserInfo(targetId: string, info: any): string {
+    if (!info) return `🆔 **ID:** \`${targetId}\`\n*(Ma'lumot topilmadi yoki bot u bilan hech qachon yozishmagan)*`;
+    
+    let text = `👤 **Profil Ma'lumotlari:**\n`;
+    text += `🆔 **ID:** \`${targetId}\`\n`;
+    
+    if (info.title) {
+      text += `🏷 **Guruh/Kanal:** ${info.title}\n`;
+    } else {
+      if (info.firstName) text += `👤 **Ism:** ${info.firstName}\n`;
+      if (info.lastName) text += `👥 **Familiya:** ${info.lastName}\n`;
+    }
+    if (info.username) text += `🔗 **Username:** @${info.username}\n`;
+    
+    return text;
   }
 
   public launch() {
@@ -218,7 +271,8 @@ export class AdminBot {
       { command: 'setlimit', description: "Kontekst xabarlar sonini o'zgartirish" },
       { command: 'setdelay', description: "Kutish vaqtini o'zgartirish" },
       { command: 'mute', description: "Ma'lum bir chatni muzlatish (ID orqali)" },
-      { command: 'unmute', description: "Chatni muzlatishdan chiqarish (ID orqali)" }
+      { command: 'unmute', description: "Chatni muzlatishdan chiqarish (ID orqali)" },
+      { command: 'info', description: "Chat ID orqali profil ma'lumotlarini olish" }
     ]).catch(err => console.error("Komandalarni Telegramga yuborishda xatolik:", err));
 
     this.bot.launch().then(() => {
