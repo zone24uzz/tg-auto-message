@@ -229,28 +229,9 @@ export class TelegramService {
 
   private async tryProcessMessages(chatId: string, senderName: string, rawMsg: any) {
     const state = this.memoryManager.getOrCreateChatState(chatId);
-    
-    // Check if I am online
-    let isOwnerOnline = false;
-    try {
-      const me: any = await this.client.getEntity('me');
-      if (me.status?.className === 'UserStatusOnline') {
-        isOwnerOnline = true;
-      }
-    } catch (e) {
-      console.warn("Egasi statusini olishda xatolik:", e);
-    }
 
-    if (isOwnerOnline) {
-      if (!state.onlineCheckTimer) {
-        console.log(`⏳ [Chat ${chatId}] Egasi onlayn. 30 soniyadan keyin qayta tekshiriladi...`);
-        state.onlineCheckTimer = setTimeout(() => {
-          state.onlineCheckTimer = undefined;
-          this.tryProcessMessages(chatId, senderName, rawMsg);
-        }, 30000); // 30 soniyada tekshirish
-      }
-      return;
-    }
+    // Online check removed as GramJS keeps the user online permanently, causing infinite loops.
+    // The bot will rely on the muteChat logic if the owner is actively typing.
 
     const messagesToProcess = [...state.pendingMessages];
     if (messagesToProcess.length === 0) return;
