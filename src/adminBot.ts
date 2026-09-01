@@ -124,6 +124,16 @@ export class AdminBot {
   }
 
   public launch() {
+    this.bot.telegram.setMyCommands([
+      { command: 'status', description: "AIning holati va muzlatilgan chatlarni ko'rish" },
+      { command: 'logs', description: "Oxirgi 30 ta tizim loglarini ko'rish" },
+      { command: 'settings', description: "Joriy sozlamalarni ko'rish" },
+      { command: 'on', description: "AIni barcha chatlar uchun yoqish" },
+      { command: 'off', description: "AIni barcha chatlar uchun o'chirish" },
+      { command: 'setmodel', description: "Gemini modelini o'zgartirish" },
+      { command: 'setprompt', description: "AI system promptini o'zgartirish" }
+    ]).catch(err => console.error("Komandalarni Telegramga yuborishda xatolik:", err));
+
     this.bot.launch().then(() => {
       console.log('🤖 Boshqaruv (Admin) boti ishga tushdi!');
     }).catch(err => {
