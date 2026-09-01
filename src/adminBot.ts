@@ -1,4 +1,4 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Markup } from 'telegraf';
 import { MemoryManager } from './memory.js';
 import { Config, saveDynamicSettings, loadConfig } from './config.js';
 import { globalLogs } from './logger.js';
@@ -118,11 +118,29 @@ export class AdminBot {
     this.bot.command('setmodel', (ctx) => {
       const parts = ctx.message.text.split(' ');
       const newModel = parts[1];
-      if (!newModel) return ctx.reply('❌ Iltimos, model nomini kiriting. Masalan: `/setmodel gemini-3.6-flash`', { parse_mode: 'Markdown' });
       
+      // Agar foydalanuvchi to'g'ridan-to'g'ri /setmodel nomini yozgan bo'lsa
+      if (newModel) {
+        saveDynamicSettings({ geminiModel: newModel });
+        this.telegramService.updateConfig(loadConfig());
+        return ctx.reply(`✅ Model muvaffaqiyatli \`${newModel}\` ga o'zgartirildi!`, { parse_mode: 'Markdown' });
+      }
+      
+      // Aks holda knopkalarni chiqaramiz
+      ctx.reply('👇 Qaysi modelni ishlatmoqchisiz? Tanlang:', Markup.inlineKeyboard([
+        [Markup.button.callback('⚡️ Gemini 3.6 Flash', 'model_gemini-3.6-flash')],
+        [Markup.button.callback('🧠 Gemini 2.0 Pro', 'model_gemini-2.0-pro')],
+        [Markup.button.callback('🚀 Gemini 2.0 Flash', 'model_gemini-2.0-flash')]
+      ]));
+    });
+
+    this.bot.action(/model_(.+)/, (ctx) => {
+      const newModel = ctx.match[1];
       saveDynamicSettings({ geminiModel: newModel });
       this.telegramService.updateConfig(loadConfig());
-      ctx.reply(`✅ Model muvaffaqiyatli \`${newModel}\` ga o'zgartirildi!`, { parse_mode: 'Markdown' });
+      
+      ctx.answerCbQuery(`Model yangilandi: ${newModel}`);
+      ctx.editMessageText(`✅ Model muvaffaqiyatli <b>${newModel}</b> ga o'zgartirildi!`, { parse_mode: 'HTML' }).catch(() => {});
     });
 
     this.bot.command('setprompt', (ctx) => {
