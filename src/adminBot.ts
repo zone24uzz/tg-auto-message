@@ -55,9 +55,11 @@ export class AdminBot {
       if (globalLogs.length === 0) {
         return ctx.reply('Loglar hozircha bo\'sh.');
       }
-      const logsText = globalLogs.join('\n');
+      // Loglarni HTML taglaridan tozalaymiz
+      const logsText = globalLogs.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;');
       const truncated = logsText.length > 3900 ? logsText.substring(logsText.length - 3900) : logsText;
-      ctx.reply(`📝 **Oxirgi loglar:**\n\n\`\`\`\n${truncated}\n\`\`\``, { parse_mode: 'Markdown' });
+      
+      ctx.reply(`📝 <b>Oxirgi loglar:</b>\n\n<pre>${truncated}</pre>`, { parse_mode: 'HTML' }).catch(err => console.error("Logs yuborishda xato:", err));
     });
 
     this.bot.command('on', (ctx) => {
@@ -87,14 +89,17 @@ export class AdminBot {
 
     this.bot.command('settings', (ctx) => {
       const config = loadConfig();
+      // Prompt ichidagi maxsus belgilarni qochirish
+      const safePrompt = config.systemPrompt.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;');
+      
       ctx.reply(
-        `⚙️ **Joriy Sozlamalar:**\n\n` +
-        `🤖 **Model:** \`${config.geminiModel}\`\n` +
-        `📚 **Kontekst:** \`${config.historyLimit} xabar\`\n` +
-        `⏱ **Kutish (debounce):** \`${config.debounceMs}ms\`\n\n` +
-        `📝 **System Prompt:**\n${config.systemPrompt}`,
-        { parse_mode: 'Markdown' }
-      );
+        `⚙️ <b>Joriy Sozlamalar:</b>\n\n` +
+        `🤖 <b>Model:</b> <code>${config.geminiModel}</code>\n` +
+        `📚 <b>Kontekst:</b> <code>${config.historyLimit} xabar</code>\n` +
+        `⏱ <b>Kutish:</b> <code>${config.debounceMs}ms</code>\n\n` +
+        `📝 <b>System Prompt:</b>\n<pre>${safePrompt}</pre>`,
+        { parse_mode: 'HTML' }
+      ).catch(err => console.error("Settings yuborishda xato:", err));
     });
 
     this.bot.command('setmodel', (ctx) => {
