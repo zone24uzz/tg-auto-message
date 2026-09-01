@@ -33,16 +33,23 @@ export class MemoryManager {
     return state;
   }
 
-  public muteChat(chatId: string, durationMinutes: number = 10) {
+  public muteChat(chatId: string, durationMinutes: number | null = 10) {
     const state = this.getOrCreateChatState(chatId);
     state.isMuted = true;
-    state.mutedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+    
+    if (durationMinutes === null) {
+      state.mutedUntil = undefined;
+      console.log(`🔇 [Chat ${chatId}] AI cheksiz vaqtga to'xtatildi.`);
+    } else {
+      state.mutedUntil = new Date(Date.now() + durationMinutes * 60 * 1000);
+      console.log(`🔇 [Chat ${chatId}] AI ${durationMinutes} daqiqaga to'xtatildi.`);
+    }
+
     if (state.timer) {
       clearTimeout(state.timer);
       state.timer = undefined;
     }
     state.pendingMessages = [];
-    console.log(`🔇 [Chat ${chatId}] AI ${durationMinutes} daqiqaga to'xtatildi.`);
   }
 
   public isChatMuted(chatId: string): boolean {

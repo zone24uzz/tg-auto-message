@@ -190,12 +190,42 @@ export class AdminBot {
         return ctx.reply('❌ Iltimos, muzlatmoqchi bo\'lgan chat ID sini kiriting. Masalan: <code>/mute 123456789</code>', { parse_mode: 'HTML' });
       }
       
-      this.memoryManager.muteChat(targetId);
       const userInfo = await this.telegramService.getUserInfo(targetId);
-      let text = `⏸ <b>Muvaffaqiyatli muzlatildi (Mute)!</b> AI bu chatga endi yozmaydi.\n\n`;
+      
+      let text = `⏳ <b>Mute qilish vaqtini tanlang:</b>\n\n`;
       text += this.formatUserInfo(targetId, userInfo);
       
-      ctx.reply(text, { parse_mode: 'HTML' }).catch(e => console.error("Mute reply error:", e));
+      ctx.reply(text, { 
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('30 daqiqa', `mute_30_${targetId}`), Markup.button.callback('1 soat', `mute_60_${targetId}`)],
+          [Markup.button.callback('2 soat', `mute_120_${targetId}`), Markup.button.callback('4 soat', `mute_240_${targetId}`)],
+          [Markup.button.callback('5 soat', `mute_300_${targetId}`), Markup.button.callback('24 soat', `mute_1440_${targetId}`)],
+          [Markup.button.callback('Mangu (O\'zim ochmaguncha)', `mute_forever_${targetId}`)]
+        ])
+      }).catch(e => console.error("Mute options reply error:", e));
+    });
+
+    this.bot.action(/^mute_([^_]+)_(.+)$/, async (ctx) => {
+      const durationStr = ctx.match[1];
+      const targetId = ctx.match[2];
+      
+      const duration = durationStr === 'forever' ? null : parseInt(durationStr, 10);
+      
+      this.memoryManager.muteChat(targetId, duration);
+      
+      const userInfo = await this.telegramService.getUserInfo(targetId);
+      let text = `⏸ <b>Muvaffaqiyatli muzlatildi (Mute)!</b>\n`;
+      if (duration === null) {
+          text += `Vaqti: <b>Cheksiz</b> (O'zingiz ochmaguningizcha AI yozmaydi)\n\n`;
+      } else {
+          let readableTime = duration >= 60 ? `${duration / 60} soat` : `${duration} daqiqa`;
+          text += `Vaqti: <b>${readableTime}</b>\n\n`;
+      }
+      text += this.formatUserInfo(targetId, userInfo);
+      
+      ctx.answerCbQuery('Muvaffaqiyatli muzlatildi!').catch(() => {});
+      ctx.editMessageText(text, { parse_mode: 'HTML' }).catch(() => {});
     });
 
     this.bot.command('unmute', async (ctx) => {
