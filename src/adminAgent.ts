@@ -8,6 +8,7 @@ export class AdminAgent {
   private telegramService: TelegramService;
   private memoryManager: MemoryManager;
   private chatSession: any = null;
+  private activeStopwatch: number | null = null;
 
   constructor(telegramService: TelegramService) {
     this.telegramService = telegramService;
@@ -92,6 +93,37 @@ export class AdminAgent {
                   action: { type: SchemaType.STRING, description: "deploy yoki status" }
                 }
               }
+            },
+            {
+              name: "setTimer",
+              description: "Ma'lum vaqtdan so'ng adminga eslatma yoki taymer xabarini yuborish",
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  minutes: { type: SchemaType.NUMBER, description: "Necha daqiqadan so'ng" },
+                  message: { type: SchemaType.STRING, description: "Eslatma matni" }
+                },
+                required: ["minutes", "message"]
+              }
+            },
+            {
+              name: "startStopwatch",
+              description: "Sekundomerni ishga tushirish (vaqtni hisoblashni boshlash)",
+            },
+            {
+              name: "stopStopwatch",
+              description: "Sekundomerni to'xtatish va qancha vaqt o'tganini bilish",
+            },
+            {
+              name: "getWeather",
+              description: "Qaysidir shahar ob-havosini bilish",
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  city: { type: SchemaType.STRING, description: "Shahar nomi (masalan: Tashkent)" }
+                },
+                required: ["city"]
+              }
             }
           ]
         }
@@ -131,12 +163,39 @@ export class AdminAgent {
           functionResponse = `Chat ${args.chatId} muzlatishdan chiqarildi.`;
         }
         else if (name === 'checkGithubStatus') {
-          // Dummy for now, or you could do a real fetch to Github API
           functionResponse = `GitHub bo'yicha so'rov qabul qilindi. Hozircha GitHub ulanishi to'liq qilinmagan. Siz .env ga GITHUB_TOKEN qo'shishingiz kerak.`;
         }
         else if (name === 'triggerVercelDeploy') {
-          // Dummy for now
           functionResponse = `Vercel bo'yicha ${args.action} so'rovi qabul qilindi. Vercel API tokeni yo'q.`;
+        }
+        else if (name === 'setTimer') {
+          const ms = args.minutes * 60000;
+          setTimeout(() => {
+            this.telegramService.sendMessageTo(loadConfig().adminId, `⏰ **TAYMER TUGADI:** ${args.message}`);
+          }, ms);
+          functionResponse = `Taymer ${args.minutes} daqiqaga o'rnatildi. Vaqti kelganda xabar yuboraman.`;
+        }
+        else if (name === 'startStopwatch') {
+          this.activeStopwatch = Date.now();
+          functionResponse = `Sekundomer ishga tushdi.`;
+        }
+        else if (name === 'stopStopwatch') {
+          if (this.activeStopwatch) {
+            const elapsed = ((Date.now() - this.activeStopwatch) / 1000).toFixed(1);
+            this.activeStopwatch = null;
+            functionResponse = `Sekundomer to'xtatildi. O'tgan vaqt: ${elapsed} soniya.`;
+          } else {
+            functionResponse = `Hozircha hech qanday sekundomer yoniq emas.`;
+          }
+        }
+        else if (name === 'getWeather') {
+          try {
+            const res = await fetch(`https://wttr.in/${encodeURIComponent(args.city)}?format=3`);
+            const text = await res.text();
+            functionResponse = `Ob-havo ma'lumoti: ${text}`;
+          } catch (e) {
+            functionResponse = "Ob-havo ma'lumotini olishda xatolik yuz berdi.";
+          }
         }
 
         // Return function response to model
