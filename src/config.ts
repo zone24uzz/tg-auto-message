@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
+import { SettingModel } from './db.js';
 
 dotenv.config();
 
@@ -20,40 +19,9 @@ export interface Config {
   adminPassword?: string;
 }
 
-const SETTINGS_FILE = path.resolve(process.cwd(), 'settings.json');
+let dynamicSettings: any = {};
 
-export function saveDynamicSettings(settings: Partial<Config>) {
-  try {
-    let current = {};
-    if (fs.existsSync(SETTINGS_FILE)) {
-      current = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
-    }
-    const updated = { ...current, ...settings };
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Sozlamalarni saqlashda xatolik:', e);
-  }
-}
-
-export function loadConfig(): Config {
-  const apiId = parseInt(process.env.TELEGRAM_API_ID || '0', 10);
-  const apiHash = process.env.TELEGRAM_API_HASH || '';
-  const geminiApiKey = process.env.GEMINI_API_KEY || '';
-
-  if (!apiId || !apiHash) {
-    console.warn('⚠️ DIQQAT: TELEGRAM_API_ID va TELEGRAM_API_HASH .env faylda ko\'rsatilmagan!');
-  }
-
-  if (!geminiApiKey) {
-    console.warn('⚠️ DIQQAT: GEMINI_API_KEY .env faylda ko\'rsatilmagan!');
-  }
-
-  const blacklistUsers = (process.env.BLACKLIST_USERS || '')
-    .split(',')
-    .map(u => u.trim().toLowerCase().replace('@', ''))
-    .filter(Boolean);
-
-  const defaultSystemPrompt = `Siz Komron Xidoyatov nomidan (yoki uning aqlli shaxsiy AI assistenti sifatida) Telegram shaxsiy lichkasida (DM) xabarlarga javob beruvchi yordamchisiz.
+const defaultSystemPrompt = `Siz Komron Xidoyatov nomidan (yoki uning aqlli shaxsiy AI assistenti sifatida) Telegram shaxsiy lichkasida (DM) xabarlarga javob beruvchi yordamchisiz.
 
 ASOSIY VAZIFALAR VA QOIDALAR:
 1. Suhbatdosh bilan bo'lgan oldingi xabarlar tarixini (oxirgi 50 ta xabargacha) diqqat bilan o'rganing va suhbat kontekstini yo'qotmang.
@@ -66,14 +34,51 @@ ASOSIY VAZIFALAR VA QOIDALAR:
 8. MUHIM: Agar foydalanuvchi sizdan "botmisan?", "sen kimsan?" deb shubhalansa yoki so'rasa, aslo o'zingizni sun'iy robotdek tutmang va bitta gapni quruq takrorlamang. Vaziyatga mos holda juda tabiiy va qisqa (masalan: "jinnimisan, o'zimman", "nimalar devossan 😂", "odamman-ku") javob bering. Suhbatdosh sizning bot ekanligingizni sezmasligi kerak.
 9. Agar foydalanuvchi ovozli xabar (voice), dumaloq video (video note), rasm yoki video yuborgan bo'lsa, siz uni ko'rasiz/eshitasiz. Undagi mazmunni tushunib, suhbat kontekstiga mos ravishda javob bering. Masalan, ovozli xabarda savol berilgan bo'lsa — javob qaytaring. Rasm yuborilgan bo'lsa — rasm haqida fikr bildiring.`;
 
-  let dynamicSettings: any = {};
-  if (fs.existsSync(SETTINGS_FILE)) {
-    try {
-      dynamicSettings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
-    } catch (e) {
-      // ignore
+export async function initDynamicSettings() {
+  try {
+    const settings = await SettingModel.find({});
+    for (const setting of settings) {
+      dynamicSettings[setting.key] = setting.value;
     }
+  } catch (error) {
+    console.error('Sozlamalarni DB dan o\'qishda xatolik:', error);
   }
+}
+
+export function saveDynamicSettings(settings: Partial<Config>) {
+  try {
+    dynamicSettings = { ...dynamicSettings, ...settings };
+    
+    // Async tarzda DB ga saqlash
+    for (const [key, value] of Object.entries(settings)) {
+      SettingModel.findOneAndUpdate(
+        { key },
+        { value },
+        { upsert: true, new: true }
+      ).catch(err => console.error(`Sozlamani DB ga saqlashda xato (${key}):`, err));
+    }
+  } catch (e) {
+    console.error('Sozlamalarni saqlashda xatolik:', e);
+  }
+}
+
+export function loadConfig(): Config {
+  const apiId = parseInt(process.env.TELEGRAM_API_ID || '0', 10);
+  const apiHash = process.env.TELEGRAM_API_HASH || '';
+  const geminiApiKey = process.env.GEMINI_API_KEY || '';
+
+  if (!apiId || !apiHash) {
+    console.warn("⚠️ DIQQAT: TELEGRAM_API_ID va TELEGRAM_API_HASH .env faylda ko'rsatilmagan!");
+  }
+
+  if (!geminiApiKey) {
+    console.warn("⚠️ DIQQAT: GEMINI_API_KEY .env faylda ko'rsatilmagan!");
+  }
+
+  const blacklistUsers = (process.env.BLACKLIST_USERS || '')
+    .split(',')
+    .map(u => u.trim().toLowerCase().replace('@', ''))
+    .filter(Boolean);
 
   return {
     apiId,

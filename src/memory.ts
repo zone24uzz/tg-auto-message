@@ -1,3 +1,5 @@
+import { ChatStateModel, SettingModel } from './db.js';
+
 export interface ChatState {
   chatId: string;
   isMuted: boolean;
@@ -12,12 +14,45 @@ export class MemoryManager {
   private isGlobalEnabled: boolean = true;
   private chatStates: Map<string, ChatState> = new Map();
 
+  constructor() {
+    // DB dan holatni yuklash index.ts da initDB chaqirilganda boshlanadi
+    // Bu yerda faqat asosiy holat turadi
+  }
+
+  public async initFromDB() {
+    try {
+      const globalEnabledSetting = await SettingModel.findOne({ key: 'isGlobalEnabled' });
+      if (globalEnabledSetting) {
+        this.isGlobalEnabled = globalEnabledSetting.value;
+      }
+
+      const chats = await ChatStateModel.find({});
+      for (const chat of chats) {
+        if (chat.isMuted) {
+          const state = this.getOrCreateChatState(chat.chatId);
+          state.isMuted = true;
+          if (chat.mutedUntil) {
+            state.mutedUntil = new Date(chat.mutedUntil);
+          }
+        }
+      }
+      console.log(`🧠 [Memory] ${chats.length} ta chat holati DB dan yuklandi.`);
+    } catch (error) {
+      console.error('MemoryManager initFromDB xatoligi:', error);
+    }
+  }
+
   public isEnabled(): boolean {
     return this.isGlobalEnabled;
   }
 
   public setEnabled(enabled: boolean) {
     this.isGlobalEnabled = enabled;
+    SettingModel.findOneAndUpdate(
+      { key: 'isGlobalEnabled' },
+      { value: enabled },
+      { upsert: true }
+    ).catch(err => console.error('DB isGlobalEnabled xato:', err));
   }
 
   public getOrCreateChatState(chatId: string): ChatState {
@@ -50,6 +85,9 @@ export class MemoryManager {
       state.timer = undefined;
     }
     state.pendingMessages = [];
+
+    // Saqlash
+    this.saveChatState(chatId, state);
   }
 
   public isChatMuted(chatId: string): boolean {
@@ -59,6 +97,7 @@ export class MemoryManager {
     if (state.mutedUntil && state.mutedUntil.getTime() < Date.now()) {
       state.isMuted = false;
       state.mutedUntil = undefined;
+      this.saveChatState(chatId, state); // muddati tugasa saqlaymiz
       return false;
     }
     return true;
@@ -76,6 +115,8 @@ export class MemoryManager {
       state.mutedUntil = new Date(state.mutedUntil.getTime() + minutes * 60 * 1000);
       if (state.mutedUntil.getTime() <= Date.now()) {
         this.unmuteChat(chatId);
+      } else {
+        this.saveChatState(chatId, state);
       }
     }
   }
@@ -86,6 +127,7 @@ export class MemoryManager {
       state.isMuted = false;
       state.mutedUntil = undefined;
       console.log(`🔊 [Chat ${chatId}] AI qayta faollashtirildi.`);
+      this.saveChatState(chatId, state);
     }
   }
 
@@ -97,5 +139,16 @@ export class MemoryManager {
       }
     }
     return muted;
+  }
+
+  private saveChatState(chatId: string, state: ChatState) {
+    ChatStateModel.findOneAndUpdate(
+      { chatId },
+      { 
+        isMuted: state.isMuted, 
+        mutedUntil: state.mutedUntil 
+      },
+      { upsert: true }
+    ).catch(err => console.error(`ChatState saqlashda xato (${chatId}):`, err));
   }
 }

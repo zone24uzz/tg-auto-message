@@ -1,5 +1,6 @@
 import http from 'http';
-import { loadConfig } from './config.js';
+import { loadConfig, initDynamicSettings } from './config.js';
+import { connectDB } from './db.js';
 import { TelegramService } from './telegram.js';
 import { AdminBot } from './adminBot.js';
 import { setupLogger } from './logger.js';
@@ -36,15 +37,26 @@ async function bootstrap() {
   startHealthCheckServer();
 
   try {
+    // 1. DB ni ulash va sozlamalarni yuklash
+    await connectDB();
+    await initDynamicSettings();
+
+    // 2. Konfiguratsiyani o'qish
     const config = loadConfig();
+    
+    // 3. Telegram servisi
     const service = new TelegramService(config);
+    
+    // 4. Memoryni DB dan yuklash
+    await service.getMemoryManager().initFromDB();
+
     await service.start();
 
     if (config.botToken) {
       const adminBot = new AdminBot(config, service);
       adminBot.launch();
     } else {
-      console.log('⚠️ Boshqaruv boti ishga tushmadi: BOT_TOKEN ko\'rsatilmagan.');
+      console.log("⚠️ Boshqaruv boti ishga tushmadi: BOT_TOKEN ko'rsatilmagan.");
     }
   } catch (error: any) {
     console.error('❌ Xatolik yuz berdi:', error?.message || error);
@@ -54,12 +66,12 @@ async function bootstrap() {
 
 // Xavfsiz to'xtatish
 process.on('SIGINT', () => {
-  console.log('\n🛑 Dastur to\'xtatildi.');
+  console.log("\\n🛑 Dastur to'xtatildi.");
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
-  console.log('\n🛑 Dastur to\'xtatildi.');
+  console.log("\\n🛑 Dastur to'xtatildi.");
   process.exit(0);
 });
 
