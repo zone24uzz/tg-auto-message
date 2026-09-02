@@ -20,8 +20,9 @@ export class AdminAgent {
     if (this.chatSession) return;
     
     const config = loadConfig();
+    const modelName = config.geminiModel || "gemini-3.6-flash";
     const model = this.genAI.getGenerativeModel({
-      model: "gemini-2.0-flash",
+      model: modelName,
       systemInstruction: "Siz Telegram AI Auto-Responder loyihasining boshqaruvchi agentisiz. Egasi (Admin) siz bilan to'g'ridan-to'g'ri Telegram bot orqali gaplashmoqda. Vazifangiz:\n1. Adminga har qanday savollarida yordam berish (odatiy AI kabi).\n2. Adminga botni boshqarishda yordam berish. Sizda asboblar (tools) bor.\n3. Agar admin 'falonchiga salom deb yubor' desa, sendTelegramMessage asbobidan foydalaning.\n4. Admin qisqa yozsa, qisqa va aniq javob bering. Do'stona munosabatda bo'ling.\n5. Agar Github yoki Vercel haqida so'rasa, ularni maxsus asboblar orqali chaqiring.",
       tools: [
         {
