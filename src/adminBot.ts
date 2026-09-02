@@ -146,6 +146,7 @@ export class AdminBot {
       if (newModel) {
         saveDynamicSettings({ geminiModel: newModel });
         this.telegramService.updateConfig(loadConfig());
+        this.adminAgent.resetSession();
         return ctx.reply(`✅ Model muvaffaqiyatli \`${newModel}\` ga o'zgartirildi!`, { parse_mode: 'Markdown' });
       }
       
@@ -161,6 +162,7 @@ export class AdminBot {
       const newModel = ctx.match[1];
       saveDynamicSettings({ geminiModel: newModel });
       this.telegramService.updateConfig(loadConfig());
+      this.adminAgent.resetSession();
       
       ctx.answerCbQuery(`Model yangilandi: ${newModel}`);
       ctx.editMessageText(`✅ Model muvaffaqiyatli <b>${newModel}</b> ga o'zgartirildi!`, { parse_mode: 'HTML' }).catch(() => {});

@@ -17,6 +17,10 @@ export class AdminAgent {
     this.genAI = new GoogleGenerativeAI(config.geminiApiKey);
   }
 
+  public resetSession() {
+    this.chatSession = null;
+  }
+
   private initSession() {
     if (this.chatSession) return;
     
