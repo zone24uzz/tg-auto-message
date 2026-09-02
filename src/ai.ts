@@ -66,7 +66,7 @@ ${formattedHistory || "(Hozircha oldingi xabarlar yo'q)"}
 YANGI KELGAN XABAR(LAR):
 ${currentMessageBlock}
 
-Vazifa: Yuqoridagi butun suhbat konteksti va yangi xabar(lar) (agar media fayl biriktirilgan bo'lsa uni ham tahlil qilib) asosida ${partnerName} ga eng to'g'ri, mantiqiy va xushmuomala javob qaytaring. Faqat javob matnining o'zini yozing.
+Vazifa: Yuqoridagi butun suhbat konteksti va yangi xabar(lar) (agar media fayl biriktirilgan bo'lsa uni ham tahlil qilib) asosida ${partnerName} ga eng to'g'ri, mantiqiy va xuddi insondek (tabiiy, ko'cha tilida yoki qisqa) javob qaytaring. Faqat javob matnining o'zini yozing.
 `;
 
       const contents: any[] = [userPrompt];

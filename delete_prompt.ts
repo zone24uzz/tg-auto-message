@@ -1,0 +1,1 @@
+import { SettingModel } from './src/db.js'; import mongoose from 'mongoose'; import * as dotenv from 'dotenv'; dotenv.config(); mongoose.connect(process.env.MONGODB_URI as string).then(async () => { await SettingModel.deleteOne({key: 'systemPrompt'}); console.log('Deleted systemPrompt from DB'); process.exit(0); });
