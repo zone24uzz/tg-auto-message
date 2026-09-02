@@ -135,11 +135,11 @@ export class AdminAgent {
     });
   }
 
-  public async handleAdminMessage(text: string): Promise<string> {
+  public async handleAdminMessage(messageContent: string | any[]): Promise<string> {
     this.initSession();
 
     try {
-      const result = await this.chatSession.sendMessage(text);
+      const result = await this.chatSession.sendMessage(messageContent);
       const call = result.response.functionCalls()?.[0];
       
       if (call) {

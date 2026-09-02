@@ -275,21 +275,55 @@ export class AdminBot {
     });
 
     // Faqat ID yoki username tashlanganda ma'lumot chiqarish uchun yoki Agent bilan gaplashish uchun
-    this.bot.on('text', async (ctx, next) => {
-      const text = ctx.message.text.trim();
-      if (text.startsWith('/')) return next(); // Komandalar uchun o'tkazib yuborish
+    this.bot.on('message', async (ctx, next) => {
+      const msg = ctx.message as any;
+      if (msg.text && msg.text.startsWith('/')) return next();
       
-      // Agar text qisqa va aniq foydalanuvchi bo'lsa ma'lumot qaytarish (shartli emas, lekin oson)
-      if (/^@?\w{3,30}$/.test(text) && !text.includes(' ')) {
-        const userInfo = await this.telegramService.getUserInfo(text);
-        if (userInfo) {
-          return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Text info reply error:", e));
+      let text = msg.text || msg.caption || '';
+      const contents: any[] = [];
+      
+      if (text) {
+        contents.push(text);
+      }
+      
+      if (msg.photo) {
+        const photo = msg.photo[msg.photo.length - 1];
+        try {
+          const fileLink = await ctx.telegram.getFileLink(photo.file_id);
+          const response = await fetch(fileLink.href);
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          
+          contents.push({
+            inlineData: {
+              data: buffer.toString('base64'),
+              mimeType: 'image/jpeg'
+            }
+          });
+          
+          if (!text) contents.unshift("Bu rasmda nima tasvirlanganini tushuntirib bering.");
+        } catch (err) {
+          console.error("Rasm yuklashda xato:", err);
+          return ctx.reply("❌ Rasmni yuklab olishda xatolik yuz berdi.");
         }
       }
       
-      // Aks holda Agentga jo'natamiz
+      if (contents.length === 0) return next();
+
+      // Agar text qisqa va aniq foydalanuvchi bo'lsa ma'lumot qaytarish
+      if (contents.length === 1 && typeof contents[0] === 'string') {
+        const txt = contents[0].trim();
+        if (/^@?\w{3,30}$/.test(txt) && !txt.includes(' ')) {
+          const userInfo = await this.telegramService.getUserInfo(txt);
+          if (userInfo) {
+            return ctx.reply(this.formatUserInfo(txt, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Text info reply error:", e));
+          }
+        }
+      }
+      
       ctx.sendChatAction('typing').catch(() => {});
-      const agentReply = await this.adminAgent.handleAdminMessage(text);
+      const messageData = contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents;
+      const agentReply = await this.adminAgent.handleAdminMessage(messageData);
       return ctx.reply(agentReply, { parse_mode: 'Markdown' }).catch(e => console.error("Agent reply error:", e));
     });
   }
