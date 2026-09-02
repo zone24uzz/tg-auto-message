@@ -325,8 +325,15 @@ export class AdminBot {
       
       ctx.sendChatAction('typing').catch(() => {});
       const messageData = contents.length === 1 && typeof contents[0] === 'string' ? contents[0] : contents;
-      const agentReply = await this.adminAgent.handleAdminMessage(messageData);
+      const agentReply = await this.adminAgent.handleAdminMessage(messageData, ctx);
       return ctx.reply(agentReply, { parse_mode: 'Markdown' }).catch(e => console.error("Agent reply error:", e));
+    });
+
+    // Pinned service message larni o'chirish (chatda ko'rinmasligi uchun)
+    this.bot.on('pinned_message', async (ctx) => {
+      try {
+        await ctx.deleteMessage();
+      } catch (e) {}
     });
   }
 

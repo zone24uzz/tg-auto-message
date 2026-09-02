@@ -139,7 +139,7 @@ export class AdminAgent {
     });
   }
 
-  public async handleAdminMessage(messageContent: string | any[]): Promise<string> {
+  public async handleAdminMessage(messageContent: string | any[], ctx?: any): Promise<string> {
     this.initSession();
 
     try {
@@ -174,8 +174,22 @@ export class AdminAgent {
         }
         else if (name === 'setTimer') {
           const ms = args.minutes * 60000;
+          
+          if (ctx) {
+            try {
+              const replyMsg = await ctx.reply(`⏳ Taymer o'rnatildi: ${args.minutes} daqiqa (${args.message})`);
+              await ctx.telegram.pinChatMessage(ctx.chat.id, replyMsg.message_id, { disable_notification: true });
+            } catch (err) {
+              console.error("Taymer pin qilishda xato:", err);
+            }
+          }
+
           setTimeout(() => {
-            this.telegramService.sendMessageTo(loadConfig().adminId, `⏰ **TAYMER TUGADI:** ${args.message}`);
+            if (ctx) {
+               ctx.reply(`⏰ **TAYMER TUGADI:** ${args.message}`).catch(() => {});
+            } else {
+               this.telegramService.sendMessageTo(loadConfig().adminId, `⏰ **TAYMER TUGADI:** ${args.message}`);
+            }
           }, ms);
           functionResponse = `Taymer ${args.minutes} daqiqaga o'rnatildi. Vaqti kelganda xabar yuboraman.`;
         }
