@@ -73,6 +73,20 @@ export class TelegramService {
     }
   }
 
+  public async sendMessageTo(peerId: string, message: string): Promise<boolean> {
+    try {
+      let entityId: any = peerId;
+      if (typeof peerId === 'string' && peerId.startsWith('@')) {
+        entityId = peerId.substring(1);
+      }
+      await this.client.sendMessage(entityId, { message });
+      return true;
+    } catch (e) {
+      console.error(`Foydalanuvchiga xabar yuborishda xatolik (${peerId}):`, e);
+      return false;
+    }
+  }
+
   private loadSessionString(): string {
     if (this.config.sessionString && this.config.sessionString.trim().length > 0) {
       return this.config.sessionString.trim();

@@ -3,11 +3,13 @@ import { MemoryManager } from './memory.js';
 import { Config, saveDynamicSettings, loadConfig } from './config.js';
 import { globalLogs } from './logger.js';
 import { TelegramService } from './telegram.js';
+import { AdminAgent } from './adminAgent.js';
 
 export class AdminBot {
   private bot: Telegraf;
   private memoryManager: MemoryManager;
   private telegramService: TelegramService;
+  private adminAgent: AdminAgent;
   private adminId: string;
 
   private adminPassword?: string;
@@ -15,6 +17,7 @@ export class AdminBot {
   constructor(config: Config, telegramService: TelegramService) {
     this.telegramService = telegramService;
     this.memoryManager = telegramService.getMemoryManager();
+    this.adminAgent = new AdminAgent(telegramService);
     this.bot = new Telegraf(config.botToken);
     this.adminId = config.adminId || telegramService.getMeId() || '';
     this.adminPassword = config.adminPassword;
@@ -271,17 +274,23 @@ export class AdminBot {
       ctx.reply(this.formatUserInfo(targetId, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Info reply error:", e));
     });
 
-    // Faqat ID yoki username tashlanganda ma'lumot chiqarish uchun
+    // Faqat ID yoki username tashlanganda ma'lumot chiqarish uchun yoki Agent bilan gaplashish uchun
     this.bot.on('text', async (ctx, next) => {
       const text = ctx.message.text.trim();
       if (text.startsWith('/')) return next(); // Komandalar uchun o'tkazib yuborish
       
-      // Agar text faqat raqam yoki @ bilan boshlangan username bo'lsa
-      if (/^@?\w+$/.test(text) || /^-?\d+$/.test(text)) {
+      // Agar text qisqa va aniq foydalanuvchi bo'lsa ma'lumot qaytarish (shartli emas, lekin oson)
+      if (/^@?\w{3,30}$/.test(text) && !text.includes(' ')) {
         const userInfo = await this.telegramService.getUserInfo(text);
-        return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Text info reply error:", e));
+        if (userInfo) {
+          return ctx.reply(this.formatUserInfo(text, userInfo), { parse_mode: 'HTML' }).catch(e => console.error("Text info reply error:", e));
+        }
       }
-      return next();
+      
+      // Aks holda Agentga jo'natamiz
+      ctx.sendChatAction('typing').catch(() => {});
+      const agentReply = await this.adminAgent.handleAdminMessage(text);
+      return ctx.reply(agentReply, { parse_mode: 'Markdown' }).catch(e => console.error("Agent reply error:", e));
     });
   }
 
