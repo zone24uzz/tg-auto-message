@@ -85,7 +85,7 @@ export function loadConfig(): Config {
     apiHash,
     sessionString: process.env.TELEGRAM_SESSION || '',
     geminiApiKey,
-    geminiModel: dynamicSettings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+    geminiModel: dynamicSettings.geminiModel || process.env.GEMINI_MODEL || 'gemini-3.8-flash',
     historyLimit: dynamicSettings.historyLimit || parseInt(process.env.HISTORY_LIMIT || '50', 10),
     debounceMs: dynamicSettings.debounceMs || parseInt(process.env.DEBOUNCE_MS || '4000', 10),
     simulateTyping: dynamicSettings.simulateTyping !== undefined ? dynamicSettings.simulateTyping : process.env.SIMULATE_TYPING !== 'false',

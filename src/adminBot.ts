@@ -154,6 +154,7 @@ export class AdminBot {
       ctx.reply('👇 Qaysi modelni ishlatmoqchisiz? Tanlang:', Markup.inlineKeyboard([
         [Markup.button.callback('⚡️ 3.5 Flash-Lite (Fast)', 'model_gemini-3.5-flash-lite')],
         [Markup.button.callback('🚀 3.7 Flash (All-around)', 'model_gemini-3.7-flash')],
+        [Markup.button.callback('✨ 3.8 Flash (New)', 'model_gemini-3.8-flash')],
         [Markup.button.callback('🧠 3.1 Pro (Advanced)', 'model_gemini-3.1-pro')]
       ]));
     });

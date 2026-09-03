@@ -19,7 +19,7 @@ export class AIService {
   private modelName: string;
   private systemPrompt: string;
 
-  constructor(apiKey: string, modelName: string = 'gemini-3.7-flash', systemPrompt: string) {
+  constructor(apiKey: string, modelName: string = 'gemini-3.8-flash', systemPrompt: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.modelName = modelName;
     this.systemPrompt = systemPrompt;

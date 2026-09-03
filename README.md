@@ -39,8 +39,8 @@ Loyiha ildizida `.env` fayl yarating (yoki `.env.example` dan nusxa oling):
 ```env
 TELEGRAM_API_ID=12345678
 TELEGRAM_API_HASH=your_api_hash_here
-GEMINI_API_KEY=AIzaSy...
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
 HISTORY_LIMIT=50
 DEBOUNCE_MS=4000
 SIMULATE_TYPING=true
