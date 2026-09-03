@@ -34,7 +34,7 @@ export class AdminBot {
         return next();
       }
 
-      return ctx.reply('🔒 Kechirasiz, siz ushbu botni boshqarish huquqiga ega emassiz. Bot faqat egasining (Admin) Chat ID siga qattiq bog'langan. Boshqalar ishlata olmaydi.', { parse_mode: 'Markdown' });
+      return ctx.reply("🔒 Kechirasiz, siz ushbu botni boshqarish huquqiga ega emassiz. Bot faqat egasining (Admin) Chat ID siga qattiq bog'langan. Boshqalar ishlata olmaydi.", { parse_mode: 'Markdown' });
     });
 
     this.bot.start((ctx) => {
