@@ -1,0 +1,1 @@
+import mongoose from 'mongoose'; import * as dotenv from 'dotenv'; dotenv.config(); console.log('Connecting...'); mongoose.connect(process.env.MONGODB_URI as string).then(() => { console.log('Connected!'); process.exit(0); }).catch(e => { console.error('Error:', e); process.exit(1); });
