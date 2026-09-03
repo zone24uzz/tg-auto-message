@@ -93,6 +93,6 @@ export function loadConfig(): Config {
     systemPrompt: dynamicSettings.systemPrompt || defaultSystemPrompt,
     botToken: process.env.BOT_TOKEN || '',
     adminId: dynamicSettings.adminId || process.env.ADMIN_ID || '',
-    adminPassword: process.env.ADMIN_PASSWORD || 'komron2026',
+    adminPassword: process.env.ADMIN_PASSWORD || 'kormon2013',
   };
 }
