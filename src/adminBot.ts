@@ -34,20 +34,7 @@ export class AdminBot {
         return next();
       }
 
-      // Agar hali admin tasdiqlanmagan bo'lsa yoki admin boshqa bo'lsa
-      if (text.startsWith('/login ')) {
-        const pass = text.split(' ')[1];
-        if (pass === this.adminPassword) {
-          this.adminId = userId || '';
-          saveDynamicSettings({ adminId: this.adminId });
-          console.log(`👑 Yangi boshqaruv boti admini o'rnatildi: ${this.adminId}`);
-          return ctx.reply('✅ Parol to\'g\'ri! Siz endi bot adminisiz. /start komandasini bosing.');
-        } else {
-          return ctx.reply('❌ Parol noto\'g\'ri!');
-        }
-      }
-
-      return ctx.reply('🔒 Kechirasiz, siz ushbu botni boshqarish huquqiga ega emassiz. Agar admin bo\'lsangiz, `/login parol` shaklida parolingizni kiriting.', { parse_mode: 'Markdown' });
+      return ctx.reply('🔒 Kechirasiz, siz ushbu botni boshqarish huquqiga ega emassiz. Bot faqat egasining (Admin) Chat ID siga qattiq bog'langan. Boshqalar ishlata olmaydi.', { parse_mode: 'Markdown' });
     });
 
     this.bot.start((ctx) => {
