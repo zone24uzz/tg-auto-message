@@ -121,7 +121,7 @@ export class TelegramService {
     this.client = new TelegramClient(stringSession, this.config.apiId, this.config.apiHash, {
       connectionRetries: 15,
       autoReconnect: true,
-      useWSS: true,
+      useWSS: false,
     });
 
     console.log('📱 Session tekshirilmoqda. Agar eskirgan bo\'lsa yangi login talab qilinadi...');
